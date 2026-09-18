@@ -53,6 +53,7 @@ from typing import List, Sequence, Tuple
 
 from srmech import _native
 from srmech.math import rational as _srn
+from srmech.math.q import Q as _Q   # rc476 (`#T1188`): the exact radicand carrier
 from srmech.math.laplacian import (
     mat_hermitian_eigendecompose,
     mat_matmul,
@@ -252,7 +253,14 @@ def su3_gell_mann_matrices() -> Tuple["Mat", ...]:
         # 1/√3 enters the float-complex generator Mat here — the exact-Q root
         # rotates to float at this carrier boundary (``_scale`` does ``s·m[i,j]``
         # with ``m[i,j]`` complex; ``Q·complex`` would not combine).
-        1.0 / float(_srn.sqrt(3.0)),
+        #
+        # rc476 (`#T1188`): this read ``1.0 / float(_srn.sqrt(3.0))`` — TWO
+        # roundings, the root's and the reciprocal's, and the second one is
+        # not repairable by fixing the first. It served 0.5773502691896258
+        # where the correctly rounded 1/√3 is 0.5773502691896257. The exact
+        # rational 1/3 goes IN, so there is exactly one rounding, at the
+        # carrier boundary where it belongs.
+        float(_srn.sqrt(_Q(1, 3))),
         Mat.from_rows([[1, 0, 0], [0, 1, 0], [0, 0, -2]], is_complex=True),
     ))
     return tuple(lam)
@@ -303,8 +311,15 @@ def su3_structure_constants() -> List[List[List[float]]]:
         (2, 3, 4, 0.5),
         (0, 4, 5, -0.5),
         (2, 5, 6, -0.5),
-        (3, 4, 7, float(_srn.sqrt(3.0)) / 2.0),    # √3/2 structure constant → float
-        (5, 6, 7, float(_srn.sqrt(3.0)) / 2.0),    # (feeds _scale(f, complex-Mat))
+        # rc476 (`#T1188`): ``float(_srn.sqrt(3.0)) / 2.0`` became
+        # ``float(_srn.sqrt(Q(3, 4)))`` — the halving moved INSIDE the exact
+        # radicand, so there is one rounding rather than two. This row's VALUE
+        # does not move (√3/2 was already the correctly rounded double either
+        # way, measured); the SHAPE does, and the shape is what the class
+        # ratchet reads, because "it happens to be right today" is not a
+        # property of the spelling.
+        (3, 4, 7, float(_srn.sqrt(_Q(3, 4)))),     # √3/2 structure constant → float
+        (5, 6, 7, float(_srn.sqrt(_Q(3, 4)))),     # (feeds _scale(f, complex-Mat))
     ]
     for a, b, c, val in seed_values:
         # Fill via total antisymmetry: f[π(abc)] = sign(π) val.

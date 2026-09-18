@@ -1051,7 +1051,11 @@ def _kext_modes_py(n, edges, weights, k, max_iters):
     # mode identical native-vs-pure — the analytic-deflation of the known trivial
     # mode, mirroring how fiedler_sparse deflates its √deg mode.
     if kb >= 1 and n >= 1:
-        c = 1.0 / float(_rsqrt(float(n)))    # 1/√n — Class-N∘K root, no float_pow
+        # rc476 (`#T1188`): was ``1.0 / float(_rsqrt(float(n)))`` — the
+        # ``float(n)`` demoted an op-held INT and the reciprocal then rounded a
+        # second time. 1/√n = √(1/n), so the whole constant is ONE root of an
+        # exact rational and ``float()`` of it is the correctly rounded 1/√n.
+        c = float(_rsqrt(_Q(1, n)))          # 1/√n — Class-N∘K root, no float_pow
         const = [c] * n
         pairs.append((0.0, const))
         basis.append(const)

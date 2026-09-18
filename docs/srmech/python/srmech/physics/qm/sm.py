@@ -65,6 +65,7 @@ from srmech.math.laplacian import mat_matmul, mat_norm
 from srmech.math.mat import Mat
 
 from srmech.math import rational as _srn
+from srmech.math.q import Q as _Q, to_q as _to_q   # rc476 (`#T1188`): exact radicand
 
 
 # ----------------------------------------------------------------------
@@ -256,24 +257,33 @@ def fermion_mass_from_yukawa(yukawa: float, vev: float) -> float:
         Fermion (Dirac) mass.
 
     **Accuracy (rc472, `#T1188`) — the collapse is at the EXIT, not at the
-    door.** The body is ``float(yukawa * vev / _srn.sqrt(2.0))``: two ``int``
-    operands multiply without loss, the Class-N
-    :func:`~srmech.math.rational.sqrt` returns a rational (itself an
-    approximation of ``√2``, as its own docstring says), and the quotient is
-    a rational of those — then the single terminal ``float(...)`` lift rounds
-    it to the nearest float64. So a ``yukawa`` or ``vev`` wider than 53
-    significand bits reaches the quotient intact and is rounded on the way
-    OUT: ``fermion_mass_from_yukawa(1, 2**53 + 1)`` ==
-    ``fermion_mass_from_yukawa(1, 2**53)`` (the two quotients differ by
-    ``1/√2``, under one ULP at that magnitude). The result is float64,
-    accurate to round-off of a value that is itself the Class-N ``sqrt``
-    approximation; a float operand on either side takes the float route from
-    its first multiply. Measured: the rc472 census rows
+    door.** Two exact operands reach the quotient intact and are rounded on
+    the way OUT, so ``fermion_mass_from_yukawa(1, 2**53 + 1)`` ==
+    ``fermion_mass_from_yukawa(1, 2**53)`` (the two differ by ``1/√2``, under
+    one ULP at that magnitude). Measured: the rc472 census rows
     ``fermion_mass_from_yukawa::yukawa`` and ``::vev``, DEMOTED in both cells.
+
+    **rc476 (`#T1188`) — the exit collapse is now a CORRECT rounding, and a
+    float operand no longer takes the float route from its first multiply.**
+    The body read ``float(yukawa * vev / _srn.sqrt(2.0))``, which had two
+    approximations in it, not one: ``yukawa * vev`` rounded whenever either
+    side was a float, and the divisor was the Class-N ``sqrt``'s RATIONAL
+    APPROXIMATION of ``√2``, whose own ~2⁻⁵⁵ relative error can move the
+    terminal rounding. Both are gone. ``to_q`` reads each operand EXACTLY (a
+    float's ``as_integer_ratio`` loses nothing), the product is an exact ``Q``,
+    and the whole value is formed as ONE root of an EXACT radicand:
+    ``y·v/√2 = ±√((y·v)²/2)``. So ``float()`` of it is the correctly rounded
+    double of ``y·v/√2`` — not of an approximation of it. The sign is a
+    **Class-K** pin-slot read off the exact numerator and re-applied as
+    **Class C**, never ``abs()``; a negative ``yukawa`` therefore still returns
+    a negative mass, exactly as the old quotient did.
     """
     if vev <= 0:
         raise ValueError(f"fermion_mass_from_yukawa: vev must be > 0; got {vev}")
-    return float(yukawa * vev / _srn.sqrt(2.0))
+    prod_n, prod_d = (_to_q(yukawa) * _to_q(vev)).as_pair()   # EXACT product
+    orient = -1.0 if prod_n < 0 else 1.0                      # Class K pin-slot
+    mag = _srn.sqrt(_Q(prod_n * prod_n, 2 * prod_d * prod_d))  # |y·v|/√2, exact in
+    return orient * float(mag)                                # Class C re-apply
 
 
 # ----------------------------------------------------------------------

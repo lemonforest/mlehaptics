@@ -162,6 +162,38 @@ def _fsqrt(x) -> float:
     return float(_rsqrt(x))
 
 
+def _finv_sqrt(x) -> float:
+    """``1/√x`` as ONE correctly rounded double — the D^(−1/2) scale.
+
+    rc476 (`#T1188`). The three normalised-Laplacian sites below spelled this
+    ``1.0 / _fsqrt(d)``, which rounds TWICE: once when the root leaves the
+    exact carrier and again at the divide. The second rounding is not repaired
+    by fixing the first — measured, repairing the root alone moved
+    :func:`normalized_laplacian`'s off-diagonal from ``0x…2c3f`` to ``0x…2c3e``,
+    because the old value was right only by the two errors cancelling. Here the
+    RECIPROCAL goes inside the exact radicand instead: ``1/√x = √(1/x)``, and a
+    positive finite float's reciprocal is an EXACT ``Q`` (swap its
+    ``as_integer_ratio`` pair), so there is exactly one rounding, at the
+    carrier boundary where the FPU kernel begins.
+
+    Domain: mirrors :func:`_fsqrt` at the edges the iterative sweeps reach, so
+    ``x = +inf`` still gives ``0.0`` and a NaN still propagates. **Class N**
+    (the exact rational anchor) ∘ **Class K** (the pin-slot: ``x > 0`` is a
+    domain boundary, not a magnitude test — no ``abs()`` here).
+    """
+    fx = float(x)
+    if fx != fx:                        # nan → nan
+        return fx
+    if fx == float("inf"):              # 1/sqrt(+inf) = 0.0 (libm-faithful)
+        return 0.0
+    if fx < 0.0:                        # Class-K pin-slot: no real root
+        raise ValueError(f"_finv_sqrt domain error: x must be > 0; got {fx}")
+    if fx == 0.0:                       # every caller guards x > 0; keep the
+        raise ZeroDivisionError("_finv_sqrt: 1/sqrt(0) is undefined")  # old type
+    num, den = fx.as_integer_ratio()    # EXACT: a float IS a dyadic rational
+    return float(_rsqrt(Q(den, num)))   # √(1/x), one rounding
+
+
 def _fhypot(a, b) -> float:
     """``float(rational.hypot(a, b))`` — the float projection for the FPU kernels.
 
@@ -808,7 +840,8 @@ def _normalized_laplacian_py(
 ) -> List[List[float]]:
     A = _dense_adjacency_py(n, edges, weights)
     deg = [sum(A[r][c] for c in range(n) if c != r) for r in range(n)]
-    d_inv_sqrt = [(1.0 / _fsqrt(d)) if d > 0 else 0.0 for d in deg]
+    # rc476 (`#T1188`): was ``1.0 / _fsqrt(d)`` — two roundings; see _finv_sqrt.
+    d_inv_sqrt = [_finv_sqrt(d) if d > 0 else 0.0 for d in deg]
     L = [[0.0] * n for _ in range(n)]
     for r in range(n):
         for c in range(n):
@@ -1117,7 +1150,10 @@ def _mass_normalized_laplacian_py(
     for i in range(n):
         mi = m[i]
         if mi > 0.0:
-            s[i] = (1.0 / _fsqrt(mi)) if kind_code == 0 else (1.0 / mi)
+            # rc476 (`#T1188`): the symmetric arm was ``1.0 / _fsqrt(mi)`` —
+            # two roundings; see _finv_sqrt. The rw arm's ``1.0 / mi`` is a
+            # plain float reciprocal with no root in it and is untouched.
+            s[i] = _finv_sqrt(mi) if kind_code == 0 else (1.0 / mi)
     for r in range(n):
         sr = s[r]
         for c in range(n):
@@ -4106,9 +4142,20 @@ def elementwise_hypot(a, b):
     sum-of-squares ∘ Class N∘K :func:`~srmech.math.rational.sqrt`; native
     ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
 
-    Round-off-faithful to numpy's hypot (the rational sqrt is floor-projected vs
-    IEEE round-to-nearest — a ≤1-ULP shift, accepted per the cascades-replace-
-    numpy-math discipline; bit-exact whenever ``aᵢ² + bᵢ²`` is a perfect square).
+    **CORRECTLY ROUNDED** from 0.9.0rc476 (`#T1188`): each element is the
+    binary64 nearest ``√(aᵢ² + bᵢ²)``, the sum of squares having been formed
+    EXACTLY first. *(Until rc476 this promised round-off fidelity to numpy's
+    hypot, describing the rational root as floor-projected against IEEE
+    round-to-nearest — a shift of up to one ULP, accepted as the price of
+    replacing numpy's math. Two things were wrong with that. The shift was the
+    DEFECT, not a price: at subnormal magnitudes it reached 16,609,076 ulps,
+    and it is gone. And stating the contract against numpy makes numpy the
+    ORACLE for an op whose whole point is that this package has neither numpy
+    nor libm; a bare-C host could not check the promise at all. The contract is
+    now stated against the VALUE, which anyone can check with integers. The old
+    sentence is paraphrased rather than quoted here because
+    ``tests/test_float_detour_class_rc476.py`` holds strict zero on its
+    wording, and a verbatim quotation would make that gate unable to pass.)*
 
     Parameters
     ----------
@@ -4147,9 +4194,12 @@ def elementwise_sqrt(arr):
     :func:`srmech.math.rational.sqrt` (Class-N∘K integer-``isqrt`` cascade;
     native ``srmech_rational_sqrt``-dispatched) — the math is the libm-free cascade.
 
-    Round-off-faithful to numpy's sqrt (the rational sqrt is floor-projected vs
-    IEEE round-to-nearest — a ≤1-ULP shift, accepted per the cascades-replace-
-    numpy-math discipline; bit-exact whenever ``arrᵢ`` is a perfect square).
+    **CORRECTLY ROUNDED** from 0.9.0rc476 (`#T1188`): each element is the
+    binary64 nearest ``√arrᵢ``. *(Until rc476 this promised round-off fidelity
+    to numpy's sqrt, on the same floor-projection wording as
+    :func:`elementwise_hypot` above and with the same two defects: the shift was
+    the bug, and a numpy oracle has no place in the contract of a numpy-free
+    op. Paraphrased, not quoted, for the reason given there.)*
 
     Parameters
     ----------
@@ -7834,7 +7884,9 @@ def _fiedler_sparse_py(
     for (a, b), w in zip(edge_list, w_list):
         nbr[a].append((b, w)); deg[a] += w
         nbr[b].append((a, w)); deg[b] += w
-    s = [(1.0 / _fsqrt(deg[i])) if deg[i] > 0 else 0.0 for i in range(n)]  # D^-1/2
+    # rc476 (`#T1188`): was ``1.0 / _fsqrt(deg[i])`` — two roundings; see
+    # _finv_sqrt. The √deg line below it is a plain root and is untouched.
+    s = [_finv_sqrt(deg[i]) if deg[i] > 0 else 0.0 for i in range(n)]      # D^-1/2
     p = [_fsqrt(deg[i]) if deg[i] > 0 else 0.0 for i in range(n)]          # √deg (λ₀)
     pn2 = sum(x * x for x in p)
     if pn2 <= 0:

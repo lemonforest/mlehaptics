@@ -122,13 +122,28 @@ from srmech.physics.qm.spin import pauli_matrices
 # ---------------------------------------------------------------------------
 #
 # 2 * sqrt(2) computed at double-precision. This is the exact IEEE-754
-# binary64 representation of ``2 · √2`` (correctly rounded). The Tsirelson
-# bound is a mathematical CONSTANT, so it uses the higher-precision bignum
-# REFERENCE sqrt (``precision=64``) — bit-exact with libm — rather than
-# the default K=27 cascade (the fast, ~1-ULP, embedded-runnable path that
-# ``rational.sqrt`` dispatches to ``srmech_rational_sqrt`` as of v0.7.5rc3).
+# binary64 representation of ``2 · √2`` (correctly rounded).
+#
+# rc476 (`#T1188`) — THE ``precision=64`` IS GONE, AND SO IS ITS REASON. The
+# comment here read: *"The Tsirelson bound is a mathematical CONSTANT, so it
+# uses the higher-precision bignum REFERENCE sqrt (precision=64) — bit-exact
+# with libm — rather than the default K=27 cascade (the fast, ~1-ULP,
+# embedded-runnable path…)"*. Three things were wrong with that.
+#   (a) ``~1-ULP`` was the DEFECT, not a tolerance: the default route floored
+#       onto a grid whose width tracked the operand's magnitude, and at
+#       subnormal magnitudes it was wrong by up to 16,609,076 ulps. It is
+#       correctly rounded from this release, so there is nothing to opt out of.
+#   (b) ``bit-exact with libm`` is a LIBM ORACLE. This library has no libm and
+#       a bare-C host cannot check itself against one.
+#   (c) An INTERNAL projection must never take a ``precision=`` root. That
+#       knob is the literal ABSOLUTE floored grid a CALLER asks for; reading a
+#       constant off it makes the constant depend on a caller-facing parameter.
+# The spelling is now ``float(_rsqrt(Q(8, 1)))`` — 2√2 = √8, so the doubling
+# is INSIDE the exact radicand and there is exactly one rounding. MEASURED
+# UNCHANGED at 2.8284271247461903, which is the correctly rounded 2√2: the old
+# spelling was right, by a route that could not say why.
 
-TSIRELSON_BOUND: float = 2.0 * float(_rsqrt(2.0, precision=64))
+TSIRELSON_BOUND: float = float(_rsqrt(Q(8, 1)))
 """Tsirelson's upper bound for two-qubit CHSH expectation, ``2√2``.
 
 Canonical SSoT: Cirel'son [Tsirelson] (1980) *Lett. Math. Phys.* 4, 93.
@@ -236,7 +251,12 @@ def chsh_operator() -> "Mat":
         ``{+2√2, 0, 0, −2√2}`` modulo double-precision floor.
     """
     sigma_x, _sigma_y, sigma_z = pauli_matrices()
-    inv_sqrt2 = 1.0 / float(_rsqrt(2.0))
+    # rc476 (`#T1188`): ``1.0 / float(_rsqrt(2.0))`` rounded twice, and fixing
+    # the root alone made the SECOND rounding visible — measured, this scale
+    # went from 0x3ff6a09e667f3bcd (right by luck) to 0x…bcc (wrong) the
+    # moment ``float(sqrt(2.0))`` became correctly rounded. The reciprocal
+    # belongs inside the exact radicand: 1/√2 = √(1/2).
+    inv_sqrt2 = float(_rsqrt(Q(1, 2)))
     A0, A1 = sigma_z, sigma_x
     # rc147 (BATCH B8c): Bob's settings B0 = (σ_z+σ_x)/√2, B1 = (σ_z−σ_x)/√2 —
     # the Class-I π/4 phase factor (1/√2) over the c_dispatched Mat carrier ops
