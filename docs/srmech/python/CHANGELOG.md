@@ -18,6 +18,65 @@ All notable changes to this package will be documented here. The format follows 
      `srmech.__version__` and that the slice holds EVERY current-minor entry in the file, so a
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc477] - `#T1188`: the axis was never the nearest word and the scale was rounded twice — 179 Q61 units off the body diagonal, an exactly representable 3-4-5 unit lost, and a reciprocal that was correctly rounded all along
+
+*(ABI **28 → 29**. One bump, on the oldest ground this changelog records — **served values move** (the v21 / v26 / v27 / v28 ground) — and on nothing else. The library gains **two** names, `srmech_axis_unit` and `srmech_sqrt_project_root` (**808 → 810** `T srmech_*`, measured with `nm -D --defined-only`), and loses a file-local one, `cr_inv_sqrt` (0 exported either side, 1 local before, 0 after); neither new name is a reason to bump — both are declared in the PRIVATE `c/src/srmech_sqrt_internal.h`, reach no `srmech.h` declaration and no ctypes binding, and adding a symbol has never bumped. Same wording discipline as rc476's: "no new `srmech.h` / ABI / ctypes surface", never "zero new exported symbols".)*
+
+**CONDITIONS FOR EVERY FIGURE BELOW.** WSL2, session worktree, branched from `095617d86` (v0.9.0rc476), gcc 13.3.0, CPython 3.12.3, **numpy absent**, `PYTHONDONTWRITEBYTECODE=1`, `SRMECH_PEDANTIC=ON` / `CMAKE_BUILD_TYPE=Release`, **0 build errors and 0 warnings under `-Werror`**. Native cell live and current: `HAS_NATIVE True`, `EXPECTED_ABI_VERSION 29 == NATIVE_ABI_VERSION 29`, `LOAD_ERROR None`, and the library AUTHENTICATED by CALLING the changed symbol rather than by reading its version — `srmech_chain_run`'s `qdft_resolve_mu("ijk")` returns `0.5773502691896257` where rc476 returned `0.5773502691896258`. The stale-native bypass was never set. **The oracle is Python `int` only**: no libm, no numpy, no `math.*`, no `fractions`. Every certificate is an exact integer inequality and every one carries a can-fail control that FIRED — 14 of 14 in the oracle's own self-test, including "a perturbed root misses CR on 399/399" in both directions.
+
+### THE DEFECT, IN TWO HALVES — AND NEITHER IS THE HALF THE PROSE NAMED
+
+**(1) THE AXIS.** Every axis resolver in the tree normalised the same way: take the root of the sum of squares, take its RECIPROCAL, multiply each component. That is THREE roundings for a value each site's docstring called one. rc476 made the ROOT correctly rounded, and that is not enough — the reciprocal rounds again, and even a perfectly correctly rounded double cannot address a 61-bit grid with 53 bits.
+
+**(2) THE SCALE.** `1.0 / n` was never the defect. IEEE division is correctly rounded and **0 of the 4999** integers `n` in 2..5000 miss it; `1.0 / n == float(Q(1, n))` on all 4999. The cost was the **second** rounding, at every consumer's multiply. The census that opened this group named the reciprocal, and the reciprocal is innocent.
+
+### MEASURED
+
+| quantity | before | after |
+|---|---|---|
+| `1.0/float(sqrt(float(k)))` misses the correctly rounded `1/√k`, k = 2..400 | **101 / 399** | (deleted) |
+| `float(sqrt(Q(1, k)))` misses it | 0 / 399 | **0 / 399** |
+| Q61 axis word vs the certified nearest, `'ijk'` / S=3 | **+179** | **0** |
+| Q61 axis word vs the certified nearest, `'diagonal'` / S=7 | **−68** | **0** |
+| `‖μ‖²−1`, S=3 / S=7 / S=25 / S=121, in Q61 grid units | **+619.62 / −361.50 / +409.60 / +93.09** | **−0.45 / −1.68 / +0.40 / +0.36** |
+| the exactly representable 3-4-5 axis `[0,3,4,0]` | `0.6000000000000001`, `0.8` | **`0.6`, `0.8`** |
+| `x*(1.0/N)` misses `CR(x/N)`, 20000 seeded x | **5354 / 20000** | — |
+| `x/N` misses `CR(x/N)` | — | **0 / 20000** |
+| `fftfreq`'s SERVED elements miss `CR(i/(n·d))` | **21510 / 66920** | **0 / 66920** |
+| …repairing its internal `val` ALONE would have left | **5161 / 19972** | — |
+| `srmech_chain_run` `qdft_resolve_mu("ijk")` | `0.5773502691896258` | **`0.5773502691896257`** |
+| `srmech_chain_run` `odft_resolve_mu("diagonal")` | `0.3779644730092272` | **`0.37796447300922725`** |
+| `srmech_axis_unit` vs the Python peer, 3008 cases | — | **0 mismatches**, 2 declines at the declared ceiling |
+| `srmech_quaternion_slerp` native vs pure, 700 rows | — | **0 differ** |
+| the coupler record's served slots that MOVE | — | **16 of 24** |
+
+Every served axis component is certified NEAREST in integers by `(2u−1)²·S < w²·2¹²⁴ < (2u+1)²·S`, and every float component correctly rounded against the TRUE adjacent doubles' midpoints — `tests/test_axis_words_are_nearest_rc477.py`, 46 rows, each paired with a control that must reject both neighbours. **The residue is NOT claimed to be zero**: 61 bits of grid cannot hold an irrational unit, so what is asserted is a STATED envelope, `(4|D|−n)²·S ≤ 2¹²⁶·(Σ|wᵢ|)²`, with a can-fail control that a word perturbed by 4·10⁸ must leave.
+
+### WHAT MOVED
+
+- **The named axis tables hold INTEGER DIRECTIONS.** `_S3` / `_S7` are deleted from `cascade/hypercomplex_dft.py`, `physics/qm/quaternion.py` and `physics/qm/octonion.py`; `'ijk'` is `(0,1,1,1)` and `'diagonal'` is `(0,1,…,1)`, and the `1/√k` lives inside the radicand. The float table is DERIVED, never stored. A NAMED AXIS IS A LABEL AND HAS NO CARRIER.
+- **One reader, two projections.** `srmech.math.qalg._integer_direction` reads any exact rational vector as `(w, S)`; `_axis_q61` takes the nearest word and `_axis_float` the correctly rounded double. The Q61 path never builds the float one. For `w=(0,1,1,1), S=3` the integer formula returns exactly the in-file `_HC_INV_Q61[3]` the coupler's pure Q61 arm has always used — the shipped anchor is **absorbed**, not duplicated.
+- **`dft_scale` returns the exact `Q(1, n)`** (`Q(1, 1)` for `n == 0`, never `Q(1, 0)`), the float wrappers project ONCE at their own exit, and the rc466 mixed-carrier residue this op DECLARED is drained: `tests/test_exact_carrier_drain_rc466.py`'s GOOD-NEWS pin is now the exact equality it asked for.
+- **`vec_scale`'s declaration widens to what it already accepted.** `vec_scale([1.0, -2.0], Q(1, 3))` returned `[Q(1, 3), Q(-2, 3)]` at rc476, before this release wrote a line — the declared `(Sequence[float], float) -> List[float]` was a live LIE, not a contract this rc breaks.
+- **`ground_state_flux_response` forms `Φ/n_edges` exactly** and hands the native kernel a **NULL** pattern for the uniform default, so the C side divides rather than multiplying by a reciprocal Python manufactured. That closes the `unif` site a Python probe could not reach at all.
+- **C:** `cr_inv_sqrt` is DELETED and absorbed by the `srmech_inv_sqrt` rc476 shipped and left unused; `srmech_fft`, `srmech_quaternion_dft`, `srmech_octonion_dft`, `srmech_eph_propagate_sparse` and `srmech_heat_trace` divide instead of multiplying by a reciprocal; `srmech_quat__exp_pure` normalises by the EXACT route through the new `srmech_axis_unit`.
+- **`srmech_quaternion_exp`'s exported contract is UNCHANGED**, and that is deliberate. It does NOT normalise — measured through its own export, `exp(0.7, [0,1,1,1])` returns a quaternion of squared norm `1.830032857099759` — so passing `tw` raw to it, which an earlier plan proposed, would have shipped a silent wrong value. The normalisation belongs in the static caller.
+
+### WHAT THIS RELEASE DOES NOT CLOSE
+
+- **`ground_state_flux_response` diverges between the native and pure builds by 4 ulps**, `0x1.dc6ae8025debcp-6` against `0x1.dc6ae8025deb8p-6`. That is **PRE-EXISTING** — measured identically at rc476, before any edit — it is the eigensolver's iteration order rather than the flux path (an exact `Q(1,4)` and a float `0.25` give the SAME double within each cell), and it is the iterative-kernel divergence the v28 header entry already names as owned elsewhere. **This release neither caused it nor fixed it, and asserts no parity on that op.**
+- **`srmech_axis_unit` REFUSES** an exponent spread past `SRMECH_AXIS_MAX_SPREAD_BITS` (256) rather than answering approximately: 2 of 3008 probe cases, both with a 1000-bit spread. The Python caller's complete pure path has no such ceiling and computes the same value.
+- The **seven operand-carried** reciprocal sites stay in `S1_RESIDUAL`, owned at `0.9.0rc482`; the S5 scan's wider **32-row census** is SEEDED, not repaired, in `tests/test_float_detour_class_rc477.py`.
+- `s * μ̂[i]` is still one float multiply and **its rate is STATED rather than called "accurate to round-off": 2265 of 6000** components over 2000 seeded angles.
+
+### RATCHETS
+
+- `tests/test_float_detour_class_rc476.py`: `S1_RESIDUAL` **15 → 7** rows, `CEIL_S1_RESIDUAL` **15 → 7**, in this commit. The eight G1 rows are REPAIRED, not re-dated. Its anti-vacuity row named `compose_run.c:2405` as a LIVE member and rc477 deleted that line, so it is re-anchored to a PLANT — what it guards is the PREDICATE's reach, not the tree's content.
+- `tests/test_float_detour_class_rc477.py` (new): S3-axis / S3-q61 / `cr_inv_sqrt` strict zero, the reciprocal-then-multiply shape keyed on the **multiply** (by AST dataflow in Python, a bounded window in C), strict zero in the nine files this release owns and a per-file down-only census of the 32 elsewhere. Every shape fires on a plant; the negative controls are NAMED.
+- `tests/test_axis_words_are_nearest_rc477.py` (new): the exact certificates, 46 rows.
+- `tests/test_cd_register_golden_rc464.py`: the coupler record's BIT-EXACT assertion is REPLACED — 16 of its 24 served slots move, so it cannot survive — by one asserting the exact MATHEMATICS on the same recorded inputs, inside a bound DERIVED from each record's own `Smax`. **Achieved 1.716 / 1.732 / 0.596 / 8.904 Q61 units against 24 / 20.4 / 18 / 96**, printed beside the bound so the margin is visible rather than tuned. The ndjson bytes and the fixture digest are UNTOUCHED. Two instrument traps are pinned in the file because each cost a false alarm: reading the deviation off the public FLOAT return gives 243 / 27 / 39 / **1159**, and using `rational.sqrt`'s default-grade root as "the exact `1/√S`" gives 71.8 / 4.0 / 2.0 / **336**.
+- `tests/test_quaternion_log_slerp_rc385.py`: the 49 shipped C-vs-pure slerp rows are **WIDENED** — a non-identity `q0` bank, the antipodal pair and the `tn_sq == 0` pin-slot — not replaced. They already existed.
+
 ## [0.9.0rc476] - `#T1188`: the square root was never correctly rounded, and the evidence that said otherwise was a libm oracle reading a relative-error bound — 4032 of 4096 subnormal mantissas wrong, the worst by 16,609,076 ulps, and a 28-bit root where 53 were needed
 
 *(ABI **27 → 28**. One bump, on the oldest ground this changelog records — **served values move** (the v21 / v26 / v27 ground) — and on nothing else. The library gains **two** names, `srmech_sqrt_scaled` and `srmech_inv_sqrt` (**806 → 808** `T srmech_*`, measured with `nm -D --defined-only`), and neither is a reason to bump: both are declared in the PRIVATE `c/src/srmech_sqrt_internal.h`, reach no `srmech.h` declaration and no ctypes binding, and adding a symbol has never bumped. Note the wording — "no new `srmech.h` / ABI / ctypes surface", not "zero new exported symbols", because the second is a measurable falsehood at the link level.)*

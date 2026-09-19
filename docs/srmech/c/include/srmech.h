@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc476"
-#define SRMECH_VERSION "0.9.0rc476"
+#define SRMECH_VERSION_PRE "rc477"
+#define SRMECH_VERSION "0.9.0rc477"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -893,8 +893,86 @@ extern "C" {
  *      subnormal argument is UNMEASURED and is a later rc's.
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
+ *
+ * v29 - v0.9.0rc477 (`#T1188`): THE AXIS IS THE NEAREST WORD, AND THE SCALE IS
+ *      EXACT. One bump on the oldest of the grounds this header records -
+ *      SERVED VALUES MOVE (v21 / v26 / v27 / v28) - and on nothing else. No
+ *      symbol is removed and no signature changes. The library gains two names
+ *      (srmech_axis_unit, srmech_sqrt_project_root), 808 -> 810 `T srmech_*`
+ *      measured with nm -D --defined-only, and loses a file-local one
+ *      (cr_inv_sqrt, 0 exported before and after); both new names are declared
+ *      in the PRIVATE c/src/srmech_sqrt_internal.h, reach no srmech.h
+ *      declaration and no ctypes binding, and are additive, which never bumps.
+ *
+ *      THE DEFECT, IN TWO HALVES.
+ *
+ *      (1) THE AXIS. Every axis resolver normalised the same way - take the
+ *      root of the sum of squares, take its reciprocal, multiply each
+ *      component - three roundings for a value each site's prose called one.
+ *      rc476 made the ROOT correctly rounded and that is not enough: the
+ *      reciprocal rounds again, and even a perfectly correctly rounded double
+ *      cannot address a 61-bit grid with 53 bits.
+ *
+ *      (2) THE SCALE. `1.0 / n` was never the defect - IEEE division is
+ *      correctly rounded, and 0 of the 4999 integers n in 2..5000 miss it. The
+ *      SECOND rounding was: every consumer MULTIPLIED by that reciprocal.
+ *
+ *      MEASURED, with an exact integer oracle and no libm anywhere in the
+ *      path. `1.0/float(sqrt(k))` misses the correctly rounded 1/sqrt(k) on
+ *      101 of the 399 integers k in 2..400, where the one-rounding spelling
+ *      misses 0 of 399. The Q61 axis words sat 179 above nearest at S=3 and 68
+ *      below at S=7 - a norm residue of +619.62 and -361.50 grid units,
+ *      against -0.45 and -1.68 now, with every served component certified
+ *      nearest by (2u-1)^2*S < w^2*2^124 < (2u+1)^2*S. An EXACTLY
+ *      representable unit was being lost: the 3-4-5 axis [0,3,4,0] was served
+ *      0.6000000000000001 and 0.8 (+409.60 grid units) and is served 0.6 and
+ *      0.8 exactly. On the scale side, x*(1.0/N) misses CR(x/N) on 5354 of
+ *      20000 seeded x while x/N misses 0 of 20000; fftfreq's SERVED elements
+ *      missed on 7149 of 19972 and miss 0 now (fixing its internal scalar
+ *      alone would have left 5161 - the scalar is not what the op serves).
+ *
+ *      WHAT MOVES BESIDES. srmech_chain_run's qdft_resolve_mu("ijk") served
+ *      0.5773502691896258 and serves 0.5773502691896257;
+ *      odft_resolve_mu("diagonal") served 0.3779644730092272 and serves
+ *      0.37796447300922725 - measured at the exported symbol, no Python in
+ *      the path. srmech_quaternion_dft / srmech_octonion_dft divide by
+ *      n_points on the inverse instead of multiplying by a reciprocal;
+ *      srmech_fft does the same in both its radix-2 and Bluestein arms;
+ *      srmech_eph_propagate_sparse's Chebyshev coefficients likewise. The
+ *      heat-trace flux kernel now DIVIDES by n_edges for the uniform default,
+ *      because its caller stopped manufacturing a [1.0/n_edges] pattern and
+ *      passes NULL: lambda_min moved on 34 of 42 discriminating charge
+ *      vectors. srmech_quaternion_slerp moves through
+ *      srmech_quat__exp_pure, which normalises exactly now instead of in
+ *      float - 2441 of 5000 seeded vectors differ if only one projection
+ *      moves. cr_op_dft_scale emits the exact CR_RATIONAL Q(1, n) rather than
+ *      a double; `q` has been on that wire since v21, so no kind is added.
+ *
+ *      THE PAIRING THIS REFUSES: an rc476 .so under rc477 Python, or the
+ *      reverse. Both load with HAS_NATIVE True and neither errors - the stale
+ *      library simply serves the non-nearest axis and the rounded scale, and
+ *      the glue rebuilds them into exact-looking values. Silent wrong value,
+ *      no other symptom, which is the shape v21, v26, v27 and v28 bumped for.
+ *      A stale rc476 READER meeting rc477's dft_scale gets the second half: it
+ *      has a `q` branch, so it rebuilds a Q where its chain expects a float -
+ *      the v21 silent-wrong-TYPE shape.
+ *
+ *      NOT CLOSED BY THIS BUMP. ground_state_flux_response still diverges
+ *      between the native and pure builds by 4 ulps at a fixed flux, and that
+ *      is the eigensolver's iteration order, not the flux path: it is
+ *      PRE-EXISTING (measured at rc476 and unchanged here), it is the
+ *      iterative-kernel divergence the v28 entry names as owned elsewhere, and
+ *      this release neither caused nor closed it. The seven operand-carried
+ *      reciprocal sites in tests/test_float_detour_class_rc476.py's
+ *      S1_RESIDUAL stay, owned at 0.9.0rc482, as does the 32-row S5 census
+ *      seeded in test_float_detour_class_rc477.py. srmech_axis_unit REFUSES an
+ *      exponent spread past SRMECH_AXIS_MAX_SPREAD_BITS rather than answering
+ *      approximately, and the Python caller's complete pure path has no such
+ *      ceiling. rational.py's _q61_reduce at subnormals is still a later rc's.
+ *
+ *      SRMECH_GENOME_FORMAT_VERSION stays 20 - no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 28
+#define SRMECH_ABI_VERSION 29
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -14187,8 +14265,21 @@ srmech_status_t srmech_quaternion_conjugate(
 
 /* The quaternion Euler twiddle exp(mu*theta) = cos(theta)*1 + sin(theta)*mu.
  * `mu` is a caller-provided UNIT pure-imaginary 4-vector (mu[0] == 0.0;
- * the same caller-normalises-mu contract as srmech_hypercomplex_couple_q61;
- * normalise via srmech_rational_sqrt / srmech_sqrt_q61 on a C-only host).
+ * the same caller-normalises-mu contract as srmech_hypercomplex_couple_q61).
+ *
+ * 0.9.0rc477 (`#T1188`): THIS RECIPE SAID "normalise via srmech_rational_sqrt
+ * / srmech_sqrt_q61 on a C-only host", AND THAT IS MEASURABLY WRONG. A root,
+ * a reciprocal and a multiply round THREE times: `1.0 / srmech_rational_sqrt
+ * (k)` misses the correctly rounded 1/sqrt(k) on 101 of the 399 integers k in
+ * 2..400, and a host following it lands 179 Q61 words above nearest on the
+ * body diagonal and 68 below on the equal-weight octonion axis -- diverging
+ * from the Python projection on a value both are meant to serve alike. The
+ * ROUTE is srmech_axis_unit (private c/src/srmech_sqrt_internal.h): read each
+ * component as the exact dyadic rational it already is, put them over a common
+ * denominator (which CANCELS), and take ONE root of the exact ratio. THIS
+ * function's own contract is unchanged -- it does not normalise and never did,
+ * measured: exp(0.7, [0,1,1,1]) returns a quaternion of squared norm
+ * 1.830032857099759.
  * `n` must be 4; `out` receives [cos t, sin t * mu1, sin t * mu2,
  * sin t * mu3] — a UNIT quaternion in the commutative subalgebra R[mu].
  * cos/sin are the exact Q61 cascade projected to double ONCE (byte-exact
@@ -14428,7 +14519,9 @@ srmech_status_t srmech_split_defect(const uint8_t *word, uint32_t n, uint32_t k,
 
 /* The octonion Euler twiddle exp(mu*theta) = cos(theta)*1 + sin(theta)*mu.
  * `mu` is a caller-provided UNIT pure-imaginary 8-vector (mu[0] == 0.0;
- * the same caller-normalises-mu contract as srmech_quaternion_exp).
+ * the same caller-normalises-mu contract as srmech_quaternion_exp -- including
+ * its 0.9.0rc477 (`#T1188`) note: a C-only host normalises through
+ * srmech_axis_unit, NOT through a root-then-reciprocal-then-multiply).
  * `n` must be 8; `out` receives [cos t, sin t * mu1, ..., sin t * mu7] —
  * a UNIT octonion in the commutative subalgebra R[mu] (which is WHY the
  * one-sided ODFT inverts). cos/sin are the exact Q61 cascade projected to
