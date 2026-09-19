@@ -100,7 +100,12 @@ static srmech_status_t ax_bind_u64(srmech_bigint_t *b, uint32_t *limbs,
     assert(limbs != NULL);
     b->limbs = limbs; b->cap = cap; b->n = 0u; b->sign = 0;
     if (v == 0u) { return SRMECH_OK; }
-    if (cap < 2u) { return SRMECH_ERR_OVERFLOW; }
+    /* A COMPILED-IN cap, not a caller-supplied buffer, so the status is
+     * SRMECH_ERR_LIMIT and not OVERFLOW (rc404's division: status 4 means "grow
+     * it and retry", and there is nothing here a caller can grow). Unreachable
+     * as shipped -- AX_W_LIMBS is 12 -- and a refusal is cheaper than an
+     * assumption. */
+    if (cap < 2u) { return SRMECH_ERR_LIMIT; }
     b->limbs[0] = (uint32_t)(v & 0xFFFFFFFFu);
     b->limbs[1] = (uint32_t)(v >> 32);
     b->n = (b->limbs[1] != 0u) ? 2u : 1u;
