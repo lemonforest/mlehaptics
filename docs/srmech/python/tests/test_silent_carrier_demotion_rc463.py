@@ -739,7 +739,61 @@ _DIVERGENT: "frozenset[str]" = frozenset({
     "srmech.math.laplacian.heat_trace::L",                    # INSENSITIVE / RAISED
     "srmech.math.laplacian.heat_trace::t",                    # INSENSITIVE / RAISED
     "srmech.cascade.matrix_cascades.lstsq::a",                # INEXACT_BASE / RAISED
+    # rc477 (`#T1188`) — DEMOTED / INSENSITIVE. A TIE, broken by float noise.
+    # Registered with its measurement rather than absorbed; see the block below.
+    "srmech.math.laplacian.spectral_spine::weights",
 })
+
+#: ⚠️ **THE rc477 ROW, AND WHY IT IS A REAL DIVERGENCE AND NOT A
+#: MISMEASUREMENT** (`#T1188`). It was exposed by rc477 re-measuring BOTH
+#: columns in one consistent pair of cells — the census REFUSED to merge across
+#: the release ("the committed 'pure' column was measured against registry
+#: signature 3819b475b86f and this tree is 17e812d4528d", because `dft_scale`'s
+#: return and `vec_scale`'s declaration moved it), so both were re-run from
+#: scratch. It is NOT rc477's defect: a control on the rc476 tree
+#: (`git archive 095617d86`, its own C sources, a library built from them)
+#: reproduces it byte-for-byte in the same cells — native DEMOTED at leaf [5],
+#: pure INSENSITIVE with the identical reason string.
+#:
+#: MEASURED, both cells, same harvested binding (69 edges, k=6), the probe's
+#: own first candidate shape (a 69-long weights vector — `probe_param`
+#: synthesises with `extra` = the sibling lengths, which is why it binds), the
+#: witness at leaf [5]:
+#:
+#:     P = 2**53+1   NATIVE (4,6,5,7,0,1)      PURE (4,6,5,7,0,1)
+#:     F = 2**53     NATIVE (4,6,5,7,0,1)      PURE (4,6,5,7,0,1)
+#:     G = 2**53+2   NATIVE (4,6,7,5,0,1)      PURE (4,6,5,7,0,1)
+#:
+#: **P == F in BOTH cells**, so neither projection keeps a carrier the other
+#: demotes — both lose the exact bit identically, and "native demotes what pure
+#: keeps" is REFUTED. And the pure column is not failing to reach the branch:
+#: it binds the same shape and runs the same call. What differs is OUTPUT
+#: SENSITIVITY, and only at G — a float-REPRESENTABLE 2-ulp step.
+#:
+#: THE CAUSE, read off the intermediate rather than inferred: `spectral_spine`
+#: returns a top-k node RANKING taken by |component| of the dominant
+#: eigenvector, and nodes 5 and 7 are TIED there at 1/√2. The two projections'
+#: eigensolvers put that component at `0.70710678118654746` (native) and
+#: `0.70710678118654757` (pure) — one ulp apart — so the 2-ulp weight change
+#: flips the tie under one and not the other. `lambda_max` is identical in both
+#: (18014398509481980 at F, 18014398509481988 at G). This is the same
+#: iterative-kernel last-bit divergence the v28 `srmech.h` entry assigns
+#: elsewhere, and the same family as the 4-ulp `ground_state_flux_response`
+#: split rc477 measured bit-identical before and after its own edits.
+#:
+#: WHAT WOULD CLOSE IT: give the top-k selection a DETERMINISTIC tie-break —
+#: order by `(-magnitude, node_index)` instead of leaving equal magnitudes to
+#: a comparison of values that differ between projections in their last bit.
+#: That makes the ranking a function of the inputs alone and the two columns
+#: agree. It is NOT done here: it changes `spectral_spine`'s served output, an
+#: op outside this release's axis / divide-by-N scope, and it needs its own
+#: before/after measurement and its own row in this census.
+#:
+#: FILED: `#T1188` follow-on — "spectral_spine top-k needs a deterministic
+#: tie-break", owned by the rc that next touches the Class-L ranking surface.
+_DIVERGENT_RC477_EVIDENCE = (
+    "srmech.math.laplacian.spectral_spine::weights",
+)
 
 #: The ops rc465 FIXED. Strict zero, forever: these carry an exact operand
 #: exactly, so a row for any of them in the undeclared roster is a regression,

@@ -70,6 +70,54 @@ Every served axis component is certified NEAREST in integers by `(2u−1)²·S <
 - The **seven operand-carried** reciprocal sites stay in `S1_RESIDUAL`, owned at `0.9.0rc482`; the S5 scan's wider **32-row census** is SEEDED, not repaired, in `tests/test_float_detour_class_rc477.py`.
 - `s * μ̂[i]` is still one float multiply and **its rate is STATED rather than called "accurate to round-off": 2265 of 6000** components over 2000 seeded angles.
 
+### A THIRTEENTH NATIVE/PURE DIVERGENCE, MEASURED AND REGISTERED
+
+Re-measuring the demotion census's BOTH columns in one consistent pair of cells
+— forced, because the census refused to merge across this release once
+`dft_scale`'s return and `vec_scale`'s declaration moved the registry signature
+— exposed a row that was not registered:
+`srmech.math.laplacian.spectral_spine::weights`, **native DEMOTED / pure
+INSENSITIVE**.
+
+**It is not this release's.** A control on the rc476 tree (`git archive
+095617d86`, its own C sources, a library built from them) reproduces it
+byte-for-byte in the same cells: native DEMOTED at leaf [5], pure INSENSITIVE
+with the identical reason string. `spectral_spine` composes `signed_laplacian`
++ `symmetric_eigendecompose`, and rc477 edits neither.
+
+**And it is a REAL difference, not a census artefact** — measured, both cells,
+same harvested binding (69 edges, k=6), same 69-long candidate shape, witness
+at leaf [5]:
+
+| witness | NATIVE | PURE |
+|---|---|---|
+| `P = 2**53+1` | `(4,6,5,7,0,1)` | `(4,6,5,7,0,1)` |
+| `F = 2**53` | `(4,6,5,7,0,1)` | `(4,6,5,7,0,1)` |
+| `G = 2**53+2` | **`(4,6,7,5,0,1)`** | `(4,6,5,7,0,1)` |
+
+**`P == F` in BOTH cells**, so neither projection keeps a carrier the other
+demotes — "native demotes what pure keeps" is REFUTED — and the pure column is
+not failing to reach the branch either: it binds the same shape and runs the
+same call. What differs is output SENSITIVITY, and only at a
+float-REPRESENTABLE step.
+
+THE CAUSE, read off the intermediate: the op returns a top-k node RANKING by
+|component| of the dominant eigenvector, and **nodes 5 and 7 are TIED** there
+at 1/√2. The two eigensolvers put that component at `0.70710678118654746`
+(native) and `0.70710678118654757` (pure) — ONE ULP apart — so the 2-ulp weight
+change flips the tie under one and not the other. `lambda_max` is identical in
+both. Same iterative-kernel last-bit family as the 4-ulp
+`ground_state_flux_response` split this release measured bit-identical before
+and after.
+
+REGISTERED in `_DIVERGENT` with that evidence, which is that set's stated
+purpose — not widened, not skipped, not re-baselined. **WHAT WOULD CLOSE IT:**
+give the top-k selection a deterministic tie-break, `(-magnitude, node_index)`,
+so the ranking is a function of the inputs alone. Not done here: it changes
+`spectral_spine`'s served output, an op outside this release's scope, and needs
+its own before/after measurement. FILED as a `#T1188` follow-on, owned by the
+rc that next touches the Class-L ranking surface.
+
 ### RATCHETS
 
 - `tests/test_float_detour_class_rc476.py`: `S1_RESIDUAL` **15 → 7** rows, `CEIL_S1_RESIDUAL` **15 → 7**, in this commit. The eight G1 rows are REPAIRED, not re-dated. Its anti-vacuity row named `compose_run.c:2405` as a LIVE member and rc477 deleted that line, so it is re-anchored to a PLANT — what it guards is the PREDICATE's reach, not the tree's content.
