@@ -4765,22 +4765,32 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     'srmech.cascade.dft_scale': {'example': {'input': {'inverse': 'whether this is the inverse transform',
                        'n': 'the transform length (0 legal: the empty '
                             'transform)'},
-             'output': 'dft_scale(True, 4) = 0.25 (the 1/N inverse '
-                       'normalisation); dft_scale(False, 4) = 1.0 (forward '
-                       'unscaled); dft_scale(True, 0) = 1.0 (total at n == '
-                       "0, mirroring the wrappers' empty early-return)",
+             'output': 'dft_scale(True, 4) = Q(1, 4) (the 1/N inverse '
+                       'normalisation, EXACT); dft_scale(False, 4) = Q(1, 1) '
+                       '(forward unscaled); dft_scale(True, 0) = Q(1, 1) '
+                       "(total at n == 0, mirroring the wrappers' empty "
+                       'early-return, and never Q(1, 0))',
              'why': 'The 1/N-on-inverse convention as a named Class-N step, '
-                    'total on n >= 0 so the empty-transform chain still runs '
-                    'it.',
+                    'EXACT since rc477 (`#T1188`) so the multiply downstream '
+                    'cannot round a second time, and total on n >= 0 so the '
+                    'empty-transform chain still runs it.',
              'worked': 'from srmech.cascade import dft_scale\n'
-                       'dft_scale(True, 4)                # -> 0.25\n'
-                       'dft_scale(False, 4)               # -> 1.0\n'
-                       'dft_scale(True, 0)                # -> 1.0  (total '
-                       'on the empty transform)\n'},
- 'explanation': 'WHAT — Class N: the hypercomplex-DFT output scale — ``1.0 / '
-                'float(n)`` on the inverse transform when ``n > 0``, else '
-                '``1.0`` (forward transforms are unscaled in this '
-                'convention; Parseval then reads ``Σ‖X‖² = N·Σ‖x‖²``). The '
+                       'dft_scale(True, 4)                # -> Q(1, 4)\n'
+                       'dft_scale(False, 4)               # -> Q(1, 1)\n'
+                       'dft_scale(True, 0)                # -> Q(1, 1)  '
+                       '(total on the empty transform)\n'},
+ 'explanation': 'WHAT — Class N: the hypercomplex-DFT output scale — the '
+                'EXACT ``Q(1, n)`` on the inverse transform when ``n > 0``, '
+                'else ``Q(1, 1)`` (forward transforms are unscaled in this '
+                'convention; Parseval then reads ``Σ‖X‖² = N·Σ‖x‖²``). '
+                'rc477 (`#T1188`): it returned the float64 ``1.0 / '
+                'float(n)`` through rc476, and the ~1 ULP its own prose '
+                'claimed was in the WRONG PLACE — ``1.0/n`` IS correctly '
+                'rounded (0 of the 4999 integers n in 2..5000 miss it), and '
+                'the defect was the SECOND rounding at every consumer\'s '
+                'multiply (``x*(1.0/n)`` misses ``CR(x/n)`` on 5354 of 20000 '
+                'seeded x). An exact scale cannot be multiplied wrongly, so '
+                'the float wrappers project ONCE at their own exit. The '
                 "``n > 0`` guard mirrors the public wrappers' ``if not xs: "
                 'return []`` early return — it is wrapper-layer in the '
                 'shipped op, but a declared chain has no early return, so '
@@ -5272,10 +5282,11 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     'srmech.cascade.qdft_resolve_mu': {'example': {'input': {'mu_axis': 'a named axis '
                                   "'i'/'j'/'k'/'ijk'/'diagonal', or a "
                                   'general unit pure-imaginary vector'},
-             'output': "qdft_resolve_mu('ijk') = [0.0, 0.5773502691896258, "
-                       '0.5773502691896258, 0.5773502691896258] — the '
+             'output': "qdft_resolve_mu('ijk') = [0.0, 0.5773502691896257, "
+                       '0.5773502691896257, 0.5773502691896257] — the '
                        'equal-weight (i+j+k)/sqrt(3) coupling axis, resolved '
-                       'ONCE per transform',
+                       'ONCE per transform, each component the CORRECTLY '
+                       'ROUNDED 1/sqrt(3) since rc477 (`#T1188`)',
              'why': 'The one-resolution parity contract: mu-hat is resolved '
                     'exactly once so the native and composed paths (and now '
                     'the declared chain) consume the identical floats.',
@@ -5283,15 +5294,18 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        "qdft_resolve_mu('i')              # -> [0.0, 1.0, "
                        '0.0, 0.0]\n'
                        "qdft_resolve_mu('ijk')\n"
-                       '    # -> [0.0, 0.5773502691896258, '
-                       '0.5773502691896258, 0.5773502691896258]\n'
+                       '    # -> [0.0, 0.5773502691896257, '
+                       '0.5773502691896257, 0.5773502691896257]\n'
                        'qdft_resolve_mu([0.0, 3.0, 0.0, 4.0])\n'
-                       '    # -> [0.0, 0.6000000000000001, 0.0, 0.8]\n'
-                       '    #    (the normalised general axis. Component [1] lands ONE\n'
-                       '    #    ULP ABOVE 0.6 — 0x1.3333333333334p-1 against 0.6 =\n'
-                       '    #    0x1.3333333333333p-1 — because that is where the Class-N\n'
-                       '    #    sqrt cascade lands. It is a CAPTURE, not a typo to tidy\n'
-                       '    #    back; component [3] IS exactly 0.8. Pinned by\n'
+                       '    # -> [0.0, 0.6, 0.0, 0.8]\n'
+                       '    #    (the normalised general axis, and rc477 (`#T1188`) MOVED\n'
+                       '    #    component [1]. It used to land ONE ULP ABOVE 0.6 —\n'
+                       '    #    0x1.3333333333334p-1 against 0.6 = 0x1.3333333333333p-1\n'
+                       '    #    — because the axis was normalised by a root, a reciprocal\n'
+                       '    #    and a multiply: three roundings. It is the correctly\n'
+                       '    #    rounded 3/5 now, and an exactly representable unit is no\n'
+                       '    #    longer lost. Component [3] IS exactly 0.8 and always was.\n'
+                       '    #    Both are a CAPTURE, not a typo to tidy; pinned by\n'
                        '    #    tests/test_curated_output_literal_rc469.py, which asserts\n'
                        '    #    BOTH the executed value AND this literal.)\n'},
  'explanation': 'WHAT — resolve the QDFT transform axis to a UNIT '
@@ -5520,7 +5534,7 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'scale step; ``srmech.cascade.f64_add`` is the scalar twin; '
                 '``srmech.math.laplacian.mat_matmul`` is the Class-L carrier '
                 'surface when the object really is a Mat.'},
-    'srmech.cascade.vec_scale': {'example': {'input': {'s': 'the dft_scale output (1/n inverse, 1.0 forward)',
+    'srmech.cascade.vec_scale': {'example': {'input': {'s': 'the dft_scale output (the exact Q(1, n) inverse, Q(1, 1) forward)',
                        'v': 'the folded Σ_m accumulator for one output bin'},
              'output': 'vec_scale([1.0, -2.0], 0.5) = [0.5, -1.0] — the '
                        '[acc[i] * scale for i in range(dim)] per-bin output '
@@ -5539,8 +5553,14 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'registered so the declared chains can name it as their '
                 'final body step. WHEN — as the last step of a declared '
                 "DFT-shaped chain bin, fed by ``srmech.cascade.dft_scale``'s "
-                'convention value (``1/n`` on the inverse transform, ``1.0`` '
-                'forward) — the multiply order is the shipped order, which '
+                'convention value (the EXACT ``Q(1, n)`` on the inverse '
+                'transform, ``Q(1, 1)`` forward, since rc477 `#T1188`) — so '
+                'the carrier this op returns is the OPERAND\'s, and its '
+                'declaration says so: ``list[float] | list[Q]``, which is '
+                'what it has always ACCEPTED (``vec_scale([1.0, -2.0], '
+                'Q(1, 3))`` returned ``[Q(1, 3), Q(-2, 3)]`` at rc476, '
+                'before that release wrote a line). The multiply order is '
+                'the shipped order, which '
                 "is what keeps the chain's bit-identity claim honest rather "
                 'than merely-close. Reach for it too wherever a declared '
                 'chain must scale a small plain-list vector without hauling '
