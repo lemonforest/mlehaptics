@@ -214,11 +214,20 @@ static srmech_status_t gsfr_run(
     assert(H_il != NULL);
     assert(lam != NULL);
     size_t nn = (size_t)n * (size_t)n;
-    double unif = (n_edges > 0) ? (1.0 / (double)n_edges) : 0.0;
+    /* rc477 (`#T1188`): the UNIFORM default is a DIVISION, one rounding.
+     * Through rc476 it was `1.0/n_edges` and then a multiply -- two roundings,
+     * where phi*(1.0/7) misses CR(phi/7) on 7199 of 20000 seeded phi, and it
+     * REACHES the served value (lambda_min moved on 34 of 42 discriminating
+     * charge vectors). The Python peer forms phi/n_edges exactly and projects
+     * once, and it now hands this kernel a NULL pattern for the uniform case
+     * precisely so the division happens HERE rather than in a manufactured
+     * reciprocal. A caller-SUPPLIED pattern is the operand's own value and
+     * stays one multiply of two given doubles. */
+    const double n_edges_d = (double)n_edges;
     for (uint32_t i = 0; i < n_flux; i++) {
         for (uint32_t k = 0; k < n_edges; k++) {
-            double p = (pattern != NULL) ? pattern[k] : unif;
-            cbuf[k] = fluxes[i] * p;
+            cbuf[k] = (pattern != NULL) ? (fluxes[i] * pattern[k])
+                                        : (fluxes[i] / n_edges_d);
         }
         srmech_status_t st = srmech_graph_magnetic_laplacian(
             n, n_edges, eu, ev, w, 0.0, cbuf, H_il);

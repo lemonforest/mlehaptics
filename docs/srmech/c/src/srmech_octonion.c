@@ -170,6 +170,15 @@ static srmech_status_t srmech_oct__summand(
     return SRMECH_OK;
 }
 
+/* exp(mu*theta) over a caller-normalised UNIT mu.
+ *
+ * ⚠⚠ rc477 (`#T1188`): the AXIS is correctly rounded now, and this product
+ * is not. `s * mu[i]` is one float multiply in the carrier the operand
+ * elected, so it is not the correctly rounded sin(theta)*w_i/sqrt(S).
+ * MEASURED over 2000 seeded angles on the body diagonal: 2265 of 6000
+ * components differ from the once-projected exact product. The site is
+ * unchanged; the bound is a number rather than the phrase it replaces.
+ */
 srmech_status_t srmech_octonion_exp(
     double theta, const double *mu, size_t n, double *out)
 {
@@ -267,7 +276,11 @@ srmech_status_t srmech_octonion_dft(
     /* Forward sign sigma = -1; the inverse conjugates (+1) and scales 1/N
      * on the SAME declared side — the attested convention. */
     const int32_t sigma = (inverse != 0) ? 1 : -1;
-    const double scale = (inverse != 0) ? (1.0 / (double)n_points) : 1.0;
+    /* rc477 (`#T1188`): the inverse scale is a DIVISOR, not a rounded
+     * reciprocal -- one rounding instead of two, matching the Python peer's
+     * exact Q(1, n) projected once at the wrapper's exit. Dividing by 1.0 on
+     * the forward path is exact. */
+    const double scale_den = (inverse != 0) ? (double)n_points : 1.0;
     for (uint32_t k = 0u; k < n_points; ++k) {
         double acc[SRMECH_OCT_DIM] = {0.0};
         for (uint32_t m = 0u; m < n_points; ++m) {
@@ -290,7 +303,7 @@ srmech_status_t srmech_octonion_dft(
             }
         }
         for (size_t i = 0; i < SRMECH_OCT_DIM; ++i) {
-            out[(size_t)k * SRMECH_OCT_DIM + i] = acc[i] * scale;
+            out[(size_t)k * SRMECH_OCT_DIM + i] = acc[i] / scale_den;
         }
     }
     return SRMECH_OK;

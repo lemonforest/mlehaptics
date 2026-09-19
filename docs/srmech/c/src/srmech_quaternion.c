@@ -28,6 +28,12 @@
  * srmech_hypercomplex_couple_q61's caller-provided unit mu). cos/sin ride
  * the Q61 Class-N cascade (srmech_cos_q61 / srmech_sin_q61 — NOT libm),
  * projected to double once; byte-exact with the pure-Python mirror.
+ * ⚠⚠ rc477 (`#T1188`): the AXIS is correctly rounded now, and this product
+ * is not. `s * mu[i]` is one float multiply in the carrier the operand
+ * elected, so it is not the correctly rounded sin(theta)*w_i/sqrt(S).
+ * MEASURED over 2000 seeded angles on the body diagonal: 2265 of 6000
+ * components differ from the once-projected exact product. The site is
+ * unchanged; the bound is a number rather than the phrase it replaces.
  * srmech_quaternion_twiddle adds the DFT angle: theta =
  * sigma * 2*pi * ((j*k) mod N) / N with the cyclic index reduction done
  * exactly in uint64 (Class I) and pi entering ONCE as the Class-N
@@ -57,6 +63,7 @@
  */
 
 #include "srmech.h"
+#include "srmech_sqrt_internal.h"   /* rc477 (`#T1188`): srmech_axis_unit */
 
 #include <assert.h>
 #include <stddef.h>
@@ -258,7 +265,12 @@ srmech_status_t srmech_quaternion_dft(
     assert(n_points >= 1u);
     /* Forward sign sigma = -1; the inverse conjugates (+1) and scales 1/N. */
     const int32_t sigma = (inverse != 0) ? 1 : -1;
-    const double scale = (inverse != 0) ? (1.0 / (double)n_points) : 1.0;
+    /* rc477 (`#T1188`): the inverse scale is a DIVISOR, not a rounded
+     * reciprocal. `acc * (1.0/N)` rounds twice; `acc / N` rounds once, and it
+     * is the value the Python peer serves now that dft_scale returns the exact
+     * Q(1, n) and the wrapper projects at its own exit. Dividing by 1.0 on the
+     * forward path is exact, so that arm is byte-identical to the shipped one. */
+    const double scale_den = (inverse != 0) ? (double)n_points : 1.0;
     for (uint32_t k = 0u; k < n_points; ++k) {
         double acc[SRMECH_QUAT_DIM] = {0.0, 0.0, 0.0, 0.0};
         for (uint32_t m = 0u; m < n_points; ++m) {
@@ -287,7 +299,7 @@ srmech_status_t srmech_quaternion_dft(
             }
         }
         for (size_t i = 0; i < SRMECH_QUAT_DIM; ++i) {
-            out[(size_t)k * SRMECH_QUAT_DIM + i] = acc[i] * scale;
+            out[(size_t)k * SRMECH_QUAT_DIM + i] = acc[i] / scale_den;
         }
     }
     return SRMECH_OK;
@@ -357,10 +369,29 @@ srmech_status_t srmech_quaternion_log(
 }
 
 /* exp of a PURE-imaginary quaternion tw = [0, v]: angle = ‖v‖ (Class-N
- * srmech_rational_sqrt of the Class-K sum of squares), axis = v/‖v‖, then
- * srmech_quaternion_exp on the unit axis; the ‖v‖ -> 0 pin-slot is exp(0) =
- * identity. Byte-exact with the Python _exp_pure_imag mirror (same float-op
- * order). No abs(). */
+ * srmech_rational_sqrt of the Class-K sum of squares), axis = v/‖v‖ by the
+ * EXACT route, then srmech_quaternion_exp on that unit axis; the ‖v‖ -> 0
+ * pin-slot is exp(0) = identity. Agrees with the Python _exp_pure_imag mirror
+ * BY CONSTRUCTION -- both normalise the raw vector exactly -- rather than by
+ * matching float-op order. No abs().
+ *
+ * ⚠️ rc477 (`#T1188`): the axis was `const double inv = 1.0 / tnorm;` then
+ * `tw[i] * inv` -- a projected root, a reciprocal and a multiply, three
+ * roundings. The Python peer now takes the exact per-component route, and the
+ * two disagree on 2441 of 5000 seeded pure-imaginary vectors (3054 of 15000
+ * components) if only one of them moves, so this moves with it.
+ *
+ * ⚠️ AND NOT BY PASSING `tw` RAW. srmech_quaternion_exp does NOT normalise:
+ * measured through its own export, exp(0.7, [0,1,1,1]) returns a quaternion of
+ * squared norm 1.830032857099759. Its caller-normalises-mu contract is
+ * UNCHANGED by this release, and handing it an unnormalised axis would ship a
+ * silent wrong value. The normalisation belongs HERE, which is also what keeps
+ * that exported symbol byte-identical for a given input.
+ *
+ * srmech_axis_unit REFUSES an exponent spread past its declared ceiling with
+ * SRMECH_ERR_NOT_IMPL; the status propagates, srmech_quaternion_slerp returns
+ * it, and the Python dispatcher runs its complete pure path, which has no
+ * ceiling and computes the same value. */
 static srmech_status_t srmech_quat__exp_pure(const double *tw, double *out)
 {
     assert(tw != NULL);
@@ -379,9 +410,11 @@ static srmech_status_t srmech_quat__exp_pure(const double *tw, double *out)
         return st;
     }
     assert(tnorm > 0.0);
-    const double inv = 1.0 / tnorm;
-    const double mu_hat[SRMECH_QUAT_DIM] = {
-        0.0, tw[1] * inv, tw[2] * inv, tw[3] * inv };
+    double mu_hat[SRMECH_QUAT_DIM] = {0.0, 0.0, 0.0, 0.0};
+    st = srmech_axis_unit(&tw[1], SRMECH_QUAT_DIM - 1u, &mu_hat[1]);
+    if (st != SRMECH_OK) {
+        return st;
+    }
     return srmech_quaternion_exp(tnorm, mu_hat, SRMECH_QUAT_DIM, out);
 }
 
