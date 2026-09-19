@@ -1438,7 +1438,8 @@ from srmech.math.text import fold_marks, glyph_stream
 #: than the acceptance narrowed back, and a parameter's type string is frame
 #: text. `rows` is unmoved at 761 through all three.
 WITNESS_RC416 = (
-    "11077f6de96977fedc6379741667896d91b57fb30cc84d303b607b0d35b8a8d7")
+    "26fe42f1226c24dc9a3d7e5c27a6e235a95021622657d938109191be0c970d87")
+#: was: 11077f6de96977fedc6379741667896d91b57fb30cc84d303b607b0d35b8a8d7 (rc477, before `dft_scale` -> `Q` and `vec_scale` -> `list[float] | list[Q]`; a parameter's and a return's type string are both frame text)
 #: was: a826de664379ff976ea6967e887b5060139d33120d2957f6c4fa14371f7445e1 (rc476, before the declared-type widening)
 #: was: 68e29b4c86da68f16bbcbfb2d42ee4b5b609128fda23d617a87dffaa48db4e6d (rc476, before the psk_qam composes edit)
 #: was: 2b092a14f70aaaf4e37d6b9b834dc72dc647d01351c419899ae64d7de6160341 (rc475)

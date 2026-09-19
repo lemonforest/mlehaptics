@@ -281,34 +281,218 @@ def test_rc330_signed_slot_reads_match_the_record():
 # The value operations — the two OPT layers, recorded
 # ──────────────────────────────────────────────────────────────────────
 
-def test_coupler_words_are_bit_exact_with_the_record():
-    """Recorded as ``float.hex()`` strings, so this is bit-identity and not a
-    tolerance. The recorded register's coupler was UNGATED; CDRegister gates it,
-    which is why the subsuming form opts in.
+#: The oracle's grade, STATED because it decides the answer (rc477, `#T1188`).
+#: ``rational.sqrt(Q(1, S))``'s DEFAULT return is the sticky rational at double
+#: grade — accurate to ~2**-54, i.e. ~10**2 Q61 words — and using it as "the
+#: exact 1/√S" makes this test measure the ORACLE. Measured on these four
+#: records: 71.8 / 4.0 / 2.0 / **336.0** words against bounds of 24 / 20.4 / 18 /
+#: 96, so record 3 fails and records 0 and 1 pass for the wrong reason.
+_ORACLE_ROOT_PRECISION = 300
+_ORACLE_TRIG_PRECISION = 200
 
-    **The record is DATED and is not re-recorded** (rc468, `#T1188`). The removed
-    16-slot register's ``couple_working`` composed ``hypercomplex_couple`` at the
-    float64 angle ``fl(π/2)``, which was that op's DEFAULT when these hex
-    strings were taken. rc468 made the default the exact rational quarter turn,
-    so the DEFAULT call no longer reproduces them — and rewriting a recorded
-    measurement to today's number would falsify the record the file exists to
-    preserve. What is asserted instead is stronger: the removed register's
-    behaviour is still reproducible BIT FOR BIT, through the route that produced
-    it, which is now spelled ``theta=fl(π/2)``. The subsumption claim is intact
-    and it is the PHASE that moved, not the coupler.
 
-    The companion row below measures the divergence and attributes it."""
+def _exact_couple_words(vals, theta):
+    """``2**61 * (T ⊗ q)`` for the recorded coupling, over EXACT ``Q``.
+
+    The SAME packing and the SAME structure constants the op uses — the axis is
+    the integer direction ``(0,1,…,1)`` with the irrational ``1/√S`` taken at
+    :data:`_ORACLE_ROOT_PRECISION` and ``cos``/``sin`` of the recorded
+    ``fl(π/2)`` at :data:`_ORACLE_TRIG_PRECISION`. **No private reproduction of
+    the pre-rc477 float axis anywhere**: that would be the detour re-installed
+    under a helper's name.
+    """
+    from srmech.cascade import hypercomplex_dft as H
+    from srmech.math import rational as R
+    from srmech.math.q import Q
+    q, octo = H._pack_streams(list(vals))
+    qe = [Q.from_float(float(v)) for v in q]
+    w, s_sq = H._mu_direction("diagonal", octonion=octo)
+    inv = R.sqrt(Q(1, s_sq), precision=_ORACLE_ROOT_PRECISION)
+    mu = [Q(wi, 1) * inv for wi in w]
+    th = Q.from_float(float(theta))
+    c = R.cos(th, precision=_ORACLE_TRIG_PRECISION)
+    s = R.sin(th, precision=_ORACLE_TRIG_PRECISION)
+    tw = [c] + [s * mu[i] for i in range(1, 8)]
+    zero = Q(0, 1)
+    out = [zero] * 8
+    for i in range(8):
+        if tw[i] == zero:
+            continue
+        for j in range(8):
+            if qe[j] == zero:
+                continue
+            k, sg = H._cd_basis(8, i, j)
+            prod = tw[i] * qe[j]
+            out[k] = out[k] + (prod if sg > 0 else -prod)
+    return [Q(1 << 61, 1) * v for v in out], (8 if octo else 4)
+
+
+def _served_couple_words(vals, theta, inverse=False):
+    """The Q61 words the coupler actually feeds its octonion multiply.
+
+    ⚠️ READ AT THE WORD, never off the public float return. ``hypercomplex_couple``
+    ends ``out = [v / float(_Q61_ONE) for v in out_q61]`` and a record whose
+    values reach 7.0 has 53 bits of double against 61 bits of word, so
+    recovering the word from the float LOSES it: measured on these records, the
+    same deviation reads 243 / 27 / 39 / **1159** words after the projection
+    against 1.7 / 1.7 / 0.6 / 8.9 at the word.
+    """
+    from srmech.cascade import hypercomplex_dft as H
+    q, octo = H._pack_streams(list(vals))
+    streams = [H._to_q61(v) for v in q]
+    mu_q61 = H._mu_q61(*H._mu_direction("diagonal", octonion=octo))
+    eff = (-1.0 if inverse else 1.0) * float(theta)
+    return (H._couple_q61(streams, mu_q61, eff, form="left"),
+            streams, 8 if octo else 4)
+
+
+def _inverse_couple_words(words, theta, dim):
+    """The inverse coupling of ALREADY-Q61 words, at the word.
+
+    The forward peer above starts from floats and projects once through
+    ``_to_q61``; this one starts where that ended, so no second projection
+    enters the round trip."""
+    from srmech.cascade import hypercomplex_dft as H
+    mu_q61 = H._mu_q61(*H._mu_direction("diagonal", octonion=(dim == 8)))
+    return H._couple_q61(list(words), mu_q61, -float(theta), form="left")
+
+
+def _word_gap(got, want):
+    """``max |got_i - want_i|`` as an exact ``Q``. Class-K pin, never ``abs()``."""
+    from srmech.math.q import Q
+    zero = Q(0, 1)
+    worst = zero
+    for g, wv in zip(got, want):
+        d = Q(g, 1) - (wv if isinstance(wv, Q) else Q(wv, 1))
+        d = d if d >= zero else -d
+        if d > worst:
+            worst = d
+    return worst
+
+
+def test_coupler_words_reproduce_the_recorded_maths_within_the_derived_bound(capsys):
+    """The recorded inputs, asserted against the EXACT MATHEMATICS.
+
+    **rc477 (`#T1188`) REPLACES the bit-exact assertion this row used to make**,
+    and states why rather than relaxing it quietly. The record's coupler axis
+    was ``'diagonal'``, whose Q61 words this release moves onto the NEAREST word:
+    68 units at ``S = 7`` and 77 at ``S = 3``. Measured through the shipped
+    packing on the shipped inputs, **16 of the 24 slots the op serves move**
+    (2/8, 4/4, 3/4, 7/8 across the four records; the two quaternion records
+    return ``out_q[:4]``, so counting 8 slots for them would count slots the op
+    does not serve). A bit-exact assertion cannot survive that, and the record
+    is DATED — its ndjson bytes and the digest pinned in ``_golden_sedenion``
+    are untouched, because rewriting a recorded measurement to today's number
+    falsifies the record this file exists to preserve.
+
+    What replaces it is stronger than the equality it loses: the SAME recorded
+    inputs at the SAME recorded ``fl(π/2)`` are asserted against the exact
+    mathematics, within a bound this test DERIVES from the record's own
+    ``Smax``, with the achieved value PRINTED beside it so the margin is
+    visible rather than tuned.
+
+    THE BOUND. Each output slot is a sum of at most 8 products of a twiddle word
+    and a stream word. A twiddle word carries at most ``1.5 + B_trig`` grid
+    units (the Q61 rounding of the trig value, plus the fixed-point multiply,
+    plus the angle term); a stream word carries at most 0.5 from ``_to_q61``,
+    scaled by a twiddle of magnitude at most 1; and each fixed-point multiply
+    adds at most 1. So
+
+        |out_slot − 2**61·exact|  ≤  8·((1.5 + B_trig)·Smax + 0.5 + 1)
+
+    with ``Smax = max|v_j|`` an INPUT of the test, not a fitted constant.
+    ``B_trig = 0`` is MEASURED at this angle and only at this angle — see
+    :func:`test_the_recorded_angle_contributes_no_trig_error` — which is why it
+    is carried symbolically rather than folded in.
+    """
+    from srmech.cascade.hypercomplex_dft import _PI
+    from srmech.cascade import magnitude as _magnitude
+    from srmech.math.q import Q
+    theta = _PI / 2.0
+    achieved = []
+    for idx, rec in enumerate(load_golden()["couple"]):
+        vals = [float.fromhex(v) for v in rec["vals"]]
+        smax = max(float(_magnitude(v)) for v in vals)      # Class K, no abs()
+        bound = Q(8, 1) * (Q(3, 2) * Q.from_float(smax) + Q(3, 2))
+        got, streams, dim = _served_couple_words(vals, theta)
+        want, want_dim = _exact_couple_words(vals, theta)
+        assert dim == want_dim, (dim, want_dim)
+        gap = _word_gap(got[:dim], want[:dim])
+        achieved.append((idx, dim, smax, float(gap), float(bound)))
+        assert gap <= bound, (
+            f"record {idx}: the coupled word is {float(gap):.3f} Q61 units from "
+            f"the exact mathematics, past the derived bound {float(bound):.1f} "
+            f"(Smax={smax}, dim={dim})")
+        # The INVERSE round trip the record also carried. ⚠️ It re-enters ON THE
+        # WORDS: handing them back through _served_couple_words would re-pack
+        # integers as floats and project them through _to_q61 again, which
+        # measures the projection and not the round trip (it reads 5.3e36 Q61
+        # units -- the words read as raw magnitudes -- against a bound of 48).
+        back = _inverse_couple_words(got, theta, dim)
+        rt = _word_gap(back[:dim], streams[:dim])
+        assert rt <= Q(2, 1) * bound, (
+            f"record {idx}: the round trip is {float(rt):.3f} Q61 units from "
+            f"the stream words, past 2x the derived bound {2 * float(bound):.1f}")
+    with capsys.disabled():
+        print("\n  coupler record, deviation at the Q61 WORD vs the derived bound:")
+        for idx, dim, smax, g, b in achieved:
+            print("    rec %d  dim %d  Smax %-4s  achieved %7.3f   bound %6.1f"
+                  % (idx, dim, smax, g, b))
+
+
+def test_nothing_reproduces_the_pre_rc477_float_axis_word(capsys):
+    """THE CAN-FAIL HALF, and the one that would catch a quiet re-install.
+
+    The row above measures a DISTANCE, and a distance test passes just as well
+    against a tree that never changed. So this asserts the thing that DID
+    change: the served word is no longer the recorded one. If a future edit
+    re-installs the float-axis normalisation — under a helper's name, or by
+    restoring the ``_S3`` constant — the recorded hex strings come back and
+    this fails, naming the record it reproduced.
+    """
     from srmech.cascade.hypercomplex_dft import _PI
     from srmech.cascade import hypercomplex_couple
-    for rec in load_golden()["couple"]:
+    moved = 0
+    slots = 0
+    for idx, rec in enumerate(load_golden()["couple"]):
         vals = [float.fromhex(v) for v in rec["vals"]]
-        word = hypercomplex_couple(list(vals), axis="diagonal",
-                                   theta=_PI / 2.0)
-        assert [float(v).hex() for v in word] == rec["word"], (
-            f"the coupled working word diverged on {vals}")
-        back = hypercomplex_couple(list(word), axis="diagonal",
-                                   theta=_PI / 2.0, inverse=True)
-        assert [float(v).hex() for v in list(back)[1:]] == rec["uncoupled"]
+        word = [float(v).hex() for v in hypercomplex_couple(
+            list(vals), axis="diagonal", theta=_PI / 2.0)]
+        assert word != rec["word"], (
+            f"record {idx} reproduced the pre-rc477 float-axis word EXACTLY — "
+            "the axis normalisation has been re-installed somewhere")
+        slots += len(word)
+        moved += sum(1 for a, b in zip(word, rec["word"]) if a != b)
+    with capsys.disabled():
+        print("\n  coupler record: %d of %d served slots moved" % (moved, slots))
+    assert (moved, slots) == (16, 24), (
+        f"the axis change moved {moved} of {slots} served slots; rc477 measured "
+        "16 of 24 (2/8, 4/4, 3/4, 7/8). A different split means the packing or "
+        "the axis changed again and the figure in the docstring is stale")
+
+
+def test_the_recorded_angle_contributes_no_trig_error():
+    """``B_trig = 0`` at ``fl(π/2)``, MEASURED — the one term the bound above
+    carries symbolically (rc477, `#T1188`).
+
+    The Q61 cosine and sine of the recorded angle are asserted against the
+    exact-rational trig at :data:`_ORACLE_TRIG_PRECISION`, rounded to the grid.
+    It holds at THIS angle; widening the record past its own ``theta`` means
+    re-measuring this before reusing the bound.
+    """
+    from srmech.cascade import hypercomplex_dft as H
+    from srmech.math import rational as R
+    from srmech.math.q import Q
+    theta = H._PI / 2.0
+    th = Q.from_float(float(theta))
+    for name, fn in (("cos", R.cos), ("sin", R.sin)):
+        exact = fn(th, precision=_ORACLE_TRIG_PRECISION)
+        grid = round(exact * Q(1 << 61, 1))
+        live = H._q61_int(fn(float(theta)))
+        assert live == grid, (
+            f"B_trig is NOT 0 for {name} at fl(pi/2): the Q61 word is {live} "
+            f"and the exact value rounds to {grid}, so the derived bound's "
+            "symbolic B_trig term must be re-measured before it is reused")
 
 
 def test_the_default_phase_diverges_from_the_record_and_the_difference_is_the_leak():

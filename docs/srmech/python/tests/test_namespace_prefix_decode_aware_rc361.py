@@ -1298,8 +1298,8 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
     # So a reader deriving "one op left, so one row" would get neither number,
     # which is the same arithmetic every note above records from the other
     # direction.
-    assert cascade == 231, (
-        f"expected 231 srmech.cascade op references inside the DECODED channel "
+    assert cascade == 233, (
+        f"expected 233 srmech.cascade op references inside the DECODED channel "
         f"(the rc377 move's 95 + rc380's 2 loop-defect ops + rc383's defect_ladder + "
         f"rc384's octonion_frame_read + rc386's cd_three_form + rc387's flip_pair / "
         f"group_algebra_table + rc395's cd_zero_divisor_witness / _witnesses + rc398's "
@@ -1307,7 +1307,7 @@ def test_the_decoded_channel_tracks_population_not_citation() -> None:
         f"division / regular-representation / Walsh-Hadamard slice), found "
         f"{cascade}. The rc377 amsc->cascade move "
         f"conserved 95 (amsc 97 -> 2); rc380 grew it by 2, rc383 by 1, rc384 by 1, "
-        f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5; rc420 (local task T1114) by 45 — the 27 cascade leaf-inventory registrations (12 leaves + 7 composites + 8 DFT leaves) land 45 consumes/produces rows in the carrier back-index; rc427 (local task T1130) by 5; the rc430 repair (local task T1127) SHRANK it by 2, the first decrease — kuramoto_sin_term / kuramoto_gen_term stopped advertising the emitted `float` carrier once their returns were corrected to the un-emitted `Q`. rc464 (`#T1188`) by 17 over the 14 cdr_* registrations (per-op attribution in the comment above) and then by -1 for the 16-slot register's constructor row -- the ONE sed_* entry with a carrier back-index ref, the twelve flat adapters never having been registered. Net +16. If this is not 191, re-measure.")
+        f"rc386 by 1, rc387 by 2, rc395 by 2, rc398 by 5; rc420 (local task T1114) by 45 — the 27 cascade leaf-inventory registrations (12 leaves + 7 composites + 8 DFT leaves) land 45 consumes/produces rows in the carrier back-index; rc427 (local task T1130) by 5; the rc430 repair (local task T1127) SHRANK it by 2, the first decrease — kuramoto_sin_term / kuramoto_gen_term stopped advertising the emitted `float` carrier once their returns were corrected to the un-emitted `Q`. rc464 (`#T1188`) by 17 over the 14 cdr_* registrations (per-op attribution in the comment above) and then by -1 for the 16-slot register's constructor row -- the ONE sed_* entry with a carrier back-index ref, the twelve flat adapters never having been registered. Net +16. rc477 (`#T1188`) by +2, RE-DERIVED and not incremented: `dft_scale`'s return moved float -> `Q` and `vec_scale`'s declaration widened to `list[float] | list[Q]`, so each advertises a carrier token it did not name before. That is the rc430 repair's shape in the other direction -- that one SHRANK the index by 2 when two returns were corrected float -> `Q` and the `float` row went away; here the `float` rows STAY (vec_scale still accepts and returns floats) and a `Q` row is added beside each, so it grows rather than moving. `physics_qm` does NOT move: rc477 edits `physics/qm/*` but changes no declared type there, measured rather than assumed. If this is not 191, re-measure.")
     # rc381 (`#T1052`) — THE srmech.physics.qm RECEIVING SIDE, pinned like biology
     # / cascade. UNLIKE every drain above, this move did NOT come out of the amsc
     # population — the qm subpackage was never under amsc. It is a whole-subpackage
