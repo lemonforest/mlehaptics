@@ -136,17 +136,26 @@ _FANO_LINES: Tuple[Tuple[int, int, int], ...] = (
 #: projected once at import; the ×4 is an exact power of two). NO ``math.pi``.
 _PI = 4.0 * float(_ratan(1.0))
 
-#: 1/√3 and 1/√7 via the Class-N rational sqrt cascade (axis unit norms).
-_S3 = 1.0 / float(_rsqrt(3.0))
-_S7 = 1.0 / float(_rsqrt(7.0))
+
+def _e8(axis: int) -> Tuple[int, ...]:
+    """The basis DIRECTION ``e_axis`` as an 8-tuple of integers (rc477,
+    `#T1188`: integers, not floats — see :data:`_MU_AXES`)."""
+    return tuple(1 if i == axis else 0 for i in range(_DIM))
 
 
-def _e8(axis: int) -> Tuple[float, ...]:
-    """The unit basis axis ``e_axis`` as an 8-tuple (exact floats)."""
-    return tuple(1.0 if i == axis else 0.0 for i in range(_DIM))
-
-
-#: Named unit pure-imaginary octonion axes (``μ̂² = −1``). ``'i'``/``'j'``/
+#: Named pure-imaginary octonion axes as INTEGER DIRECTIONS (``μ̂² = −1``
+#: after normalisation).
+#:
+#: ⚠️ rc477 (`#T1188`): the table used to STORE ``_S3 = 1.0 / float(_rsqrt(3.0))``
+#: and ``_S7 = 1.0 / float(_rsqrt(7.0))`` — a floored root, a reciprocal and a
+#: multiply, three roundings for a value this file's prose called one. The
+#: ``'diagonal'`` constant sat 68 Q61 words BELOW the nearest word (a norm
+#: residue of −361.50 grid units) and served ``0.3779644730092272`` where the
+#: correctly rounded ``1/√7`` is ``0.37796447300922725``. A NAMED AXIS IS A
+#: LABEL AND HAS NO CARRIER: the direction is integers and the ``1/√k`` belongs
+#: inside the radicand. The float reading is DERIVED by :func:`_resolve_mu8`.
+#:
+#: ``'i'``/``'j'``/
 #: ``'k'`` alias ``'e1'``/``'e2'``/``'e3'`` (the ℍ ⊂ 𝕆 rung — the SAME axes
 #: the quaternion twiddle names); ``'e4'..'e7'`` are the extra octonion axes;
 #: ``'ijk'`` is the quaternion body diagonal ``(e1+e2+e3)/√3``; ``'diagonal'``
@@ -156,8 +165,8 @@ _MU_AXES = {
     "i": _e8(1), "j": _e8(2), "k": _e8(3),
     "e1": _e8(1), "e2": _e8(2), "e3": _e8(3), "e4": _e8(4),
     "e5": _e8(5), "e6": _e8(6), "e7": _e8(7),
-    "ijk": (0.0, _S3, _S3, _S3, 0.0, 0.0, 0.0, 0.0),
-    "diagonal": (0.0, _S7, _S7, _S7, _S7, _S7, _S7, _S7),
+    "ijk": (0, 1, 1, 1, 0, 0, 0, 0),
+    "diagonal": (0, 1, 1, 1, 1, 1, 1, 1),
 }
 
 #: rc468 (`#T1188`): the exact-ℚ scalar under the name the shared
@@ -762,10 +771,27 @@ def _resolve_mu8(mu, op: str) -> List[float]:
     ``'e3'``, ``'e4'``..``'e7'``, ``'ijk'``, ``'diagonal'`` — exact table
     values) or a 4-/8-sequence pure-imaginary vector (a 4-sequence is an
     ℍ ⊂ 𝕆 axis, zero-extended), normalised via the Class-N
-    :func:`srmech.math.rational.sqrt` cascade (never libm)."""
+    :func:`srmech.math.rational.sqrt` cascade (never libm).
+
+    ⚠️ rc477 (`#T1188`): each component is the **correctly rounded double** of
+    ``sign(wᵢ)·√(wᵢ²/S)`` over the INTEGER direction :func:`_mu_direction8`
+    reads. Through rc476 this divided by a projected root — three roundings —
+    which served ``0.3779644730092272`` for the equal-weight octonion axis
+    where the correctly rounded ``1/√7`` is ``0.37796447300922725``."""
+    return _qalg._axis_float(*_mu_direction8(mu, op))
+
+
+def _mu_direction8(mu, op: str):
+    """``(w, S)`` — the octonion axis as an INTEGER direction and ``S = Σwᵢ²``
+    (rc477, `#T1188`).
+
+    A NAMED axis is a LABEL and is read straight out of :data:`_MU_AXES`. A
+    general vector is validated on the FLOAT reading — so every refusal below
+    is byte-identical to the one this op has always raised, in the same order —
+    and READ on the exact one."""
     if isinstance(mu, str):
         if mu in _MU_AXES:
-            return list(_MU_AXES[mu])
+            return _qalg._integer_direction([Q(c, 1) for c in _MU_AXES[mu]])
         raise ValueError(
             f"{op}: mu must be one of {sorted(_MU_AXES)} or a unit "
             f"pure-imaginary 4-/8-vector; got {mu!r}"
@@ -773,10 +799,12 @@ def _resolve_mu8(mu, op: str) -> List[float]:
     if isinstance(mu, Mat):
         raise ValueError(f"{op}: mu must be a 4-/8-vector; got a Mat {mu.shape}")
     try:
-        v = [float(c) for c in mu]
+        raw = list(mu)
+        v = [float(c) for c in raw]
     except TypeError as exc:  # 0-D scalar / non-iterable
         raise ValueError(f"{op}: mu must be a 4-/8-vector; got {mu!r}") from exc
     if len(v) == 4:
+        raw = raw + [0, 0, 0, 0]
         v = v + [0.0, 0.0, 0.0, 0.0]
     if len(v) != _DIM:
         raise ValueError(
@@ -788,8 +816,15 @@ def _resolve_mu8(mu, op: str) -> List[float]:
     norm_sq = sum(c * c for c in v[1:])
     if norm_sq == 0.0:
         raise ValueError(f"{op}: mu must be a non-zero pure-imaginary vector")
-    inv = 1.0 / float(_rsqrt(float(norm_sq)))
-    return [0.0] + [v[i] * inv for i in range(1, _DIM)]
+    return _qalg._integer_direction([_axis_scalar(c) for c in raw])
+
+
+def _axis_scalar(c) -> "Q":
+    """One axis component as the exact rational it already is — the shared
+    leaf reader of :func:`_mu_direction8` (rc477, `#T1188`). A ``float`` IS an
+    exact rational, so this introduces no rounding whatever."""
+    q = _exact_scalar(c)
+    return Q.from_float(float(c)) if q is None else q
 
 
 def _try_native_exp(theta: float, mu: List[float]) -> List[float]:
@@ -813,7 +848,18 @@ def _exp_resolved(theta: float, mu: List[float]) -> List[float]:
     """The exp core over an ALREADY-RESOLVED unit ``μ̂`` (never re-normalises —
     the one-resolution parity contract): native ``srmech_octonion_exp`` when
     present, else the pure Q61 cascade (``rational.{cos,sin}`` projected to
-    float once, then the axis scaling) — byte-exact either way."""
+    float once, then the axis scaling) — byte-exact either way.
+
+    ⚠️ **rc477 (`#T1188`): the AXIS moved; this product did not, and its
+    rate is STATED rather than called "accurate to round-off".** Each
+    component of ``μ̂`` is the correctly rounded double of
+    ``sign(wᵢ)·√(wᵢ²/S)`` now, but ``s * μ̂[i]`` is still ONE float multiply
+    in the carrier the operand elected, so the product is not the
+    correctly rounded ``sin θ · wᵢ/√S``. **Measured over 2000 seeded angles
+    on the body diagonal: 2265 of 6000 components differ from the
+    once-projected exact product** (``tests/test_axis_words_are_nearest_rc477
+    .py::test_the_twiddle_product_rate_is_stated_not_assumed``). The site is
+    unchanged and the bound is a number, which is the contract."""
     native = _try_native_exp(theta, mu)
     if native is not None:
         return native
