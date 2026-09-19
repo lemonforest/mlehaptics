@@ -10062,9 +10062,15 @@ def _register_primitive_class_tools() -> None:
             summary="Class M (accumulate): elementwise v * s — mirrors the "
                     "shipped DFT output scale [acc[i] * scale for i in "
                     "range(dim)] bit-exactly (the declared chains' final "
-                    "per-bin step)." + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("v", "list[float]", True), P("s", "float", True)),
-            returns=R("list[float]", "[v[i] * s]"),
+                    "per-bin step). rc477 (`#T1188`): the declaration is "
+                    "widened to what the op has always ACCEPTED — its MCP "
+                    "coercer has promoted a float scale to Q since rc420, so "
+                    "vec_scale([1.0, -2.0], Q(1, 3)) already returned "
+                    "[Q(1, 3), Q(-2, 3)]; the carrier is the OPERAND's."
+                    + PUBLISH_OPT_IN_NOTE,
+            parameters=(P("v", "list[float] | list[Q]", True),
+                        P("s", "float | Q", True)),
+            returns=R("list[float] | list[Q]", "[v[i] * s]"),
             smoke_test_hint={"v": "[1.0, -2.0]", "s": "0.5"},
         ),
         ToolEntry(
@@ -10294,13 +10300,21 @@ def _register_primitive_class_tools() -> None:
         ToolEntry(
             name="srmech.cascade.dft_scale", owner="srmech",
             category="cascade",
-            summary="Class N: the hypercomplex-DFT output scale — 1/n for "
-                    "the inverse transform (n > 0), else 1.0. The scale line "
-                    "of both composed DFT paths; the n > 0 guard mirrors the "
-                    "wrappers' empty-input early return, so the op is total "
-                    "on n >= 0." + PUBLISH_OPT_IN_NOTE,
+            summary="Class N: the hypercomplex-DFT output scale — the EXACT "
+                    "Q(1, n) for the inverse transform (n > 0), else Q(1, 1). "
+                    "The scale line of both composed DFT paths; the n > 0 "
+                    "guard mirrors the wrappers' empty-input early return, so "
+                    "the op is total on n >= 0 and n == 0 returns Q(1, 1), "
+                    "never Q(1, 0). rc477 (`#T1188`): it returned the float64 "
+                    "1/n through rc476. 1.0/n IS correctly rounded (0 of the "
+                    "4999 n in 2..5000 miss it) — the defect was the SECOND "
+                    "rounding at the multiply, x*(1.0/n) != CR(x/n) on 5354 of "
+                    "20000 seeded x, so the scale is not rounded at all now "
+                    "and the float wrappers project ONCE at their own exit."
+                    + PUBLISH_OPT_IN_NOTE,
             parameters=(P("inverse", "bool", True), P("n", "int", True)),
-            returns=R("float", "the per-bin output scale"),
+            returns=R("Q", "the per-bin output scale, exact: Q(1, n) on the "
+                           "inverse (n > 0), else Q(1, 1)"),
             smoke_test_hint={"inverse": "True", "n": "4"},
         ),
         ToolEntry(

@@ -63,9 +63,12 @@ file.
 
 from __future__ import annotations
 
-from typing import Any, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, List, Sequence, Tuple
 
 from .atoms import reorient
+
+if TYPE_CHECKING:                       # rc477 (`#T1188`): vec_scale's widened
+    from srmech.math.q import Q         # declaration names the exact carrier
 
 
 def seq_len(seq: Sequence) -> int:
@@ -192,10 +195,23 @@ def vec_add(a: Sequence[float], b: Sequence[float]) -> List[float]:
     return [a[i] + b[i] for i in range(len(a))]
 
 
-def vec_scale(v: Sequence[float], s: float) -> List[float]:
+def vec_scale(v: "Sequence[float | Q]", s: "float | Q") -> "List[float] | List[Q]":
     """Class M (accumulate): elementwise ``v * s`` — mirrors the shipped DFT
     output scale ``[acc[i] * scale for i in range(dim)]`` bit-exactly.
-    """
+
+    ⚠️ rc477 (`#T1188`): the DECLARATION is widened to what this op has always
+    ACCEPTED. It was written ``(v: Sequence[float], s: float) -> List[float]``
+    and its MCP coercer has promoted a ``float`` scale to ``Q`` since rc420, so
+    ``vec_scale([1.0, -2.0], Q(1, 3))`` already returned ``[Q(1, 3), Q(-2, 3)]``
+    — measured at rc476, before this release wrote a line. The declared type was
+    a live LIE, not a contract this rc breaks. It is stated now because
+    ``dft_scale`` returns the exact ``Q(1, n)``, so the exact carrier reaches
+    this op on every declared-chain inverse rather than only on a dyadic one,
+    and a declaration nobody could rely on becomes one somebody will.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466): this op performs one
+    multiply and returns what the operands elect. The public float wrappers
+    project once at their OWN exit rather than asking this op to round."""
     return [v[i] * s for i in range(len(v))]
 
 

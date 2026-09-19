@@ -6350,7 +6350,13 @@ def _ground_state_flux_response_native(n, el, wl, pattern, flux_list):
         eu = (ctypes.c_uint32 * n_edges)(*(int(u) for u, _ in el))
         evb = (ctypes.c_uint32 * n_edges)(*(int(v) for _, v in el))
         wbuf = (ctypes.c_double * n_edges)(*(float(x) for x in wl))
-        pbuf = (ctypes.c_double * n_edges)(*(float(p) for p in pattern))
+        # rc477 (`#T1188`): a NULL pattern is the UNIFORM default, and the C
+        # kernel then divides by n_edges itself -- one rounding. Through rc476
+        # Python manufactured [1.0/n_edges]*n_edges and handed it over, so the
+        # kernel multiplied by a reciprocal it had not been asked for and the
+        # native route rounded TWICE where the pure route now rounds once.
+        pbuf = (null_d if pattern is None
+                else (ctypes.c_double * n_edges)(*(float(p) for p in pattern)))
     else:
         eu = evb = null_u
         wbuf = pbuf = null_d
@@ -6457,7 +6463,12 @@ def ground_state_flux_response(
         pattern_exact = _exact_vector(charge_list)
     else:
         # The uniform default: total holonomy around a single cycle = Φ turns.
-        pattern = [1.0 / n_edges] * n_edges if n_edges else []
+        # rc477 (`#T1188`): the EXACT pattern only. The float peer
+        # `[1.0/n_edges]*n_edges` is not itself a wrong value -- `1.0/n` IS
+        # correctly rounded -- but everything downstream MULTIPLIED by it, a
+        # second rounding, so it is not built at all: Python forms Φ/n_edges
+        # exactly and the native kernel is handed a NULL pattern and divides.
+        pattern = None
         pattern_exact = [Q(1, n_edges)] * n_edges if n_edges else []
     scalar_f = (not isinstance(fluxes, bool)) and (
         isinstance(fluxes, (int, float))
@@ -6491,7 +6502,24 @@ def ground_state_flux_response(
         for phi, red in zip(flux_list, reduced):
             if red is not None:
                 scaled = [float(c) for c in red]     # the reduced phase's lift
+            elif pattern_exact is not None:
+                # rc477 (`#T1188`): ONE rounding. `phi * p` with `p` the float
+                # 1/n_edges rounds TWICE, and the second is not repairable by
+                # fixing the first: `1.0/n_edges` IS correctly rounded (0 of
+                # 4999 n in 2..5000), but `phi*(1.0/7) != CR(phi/7)` on 7199 of
+                # 20000 seeded phi -- and it REACHES the served value, lambda_min
+                # moving on 34 of 42 discriminating charge vectors. `phi` here
+                # is a float (an exact flux took the `red` arm above) and a
+                # float IS an exact rational, so the whole term is formed
+                # exactly and float() projects it a single time, at this
+                # boundary. Class-N exact carrier, no `abs()`.
+                phi_q = Q.from_float(phi)
+                scaled = [float(phi_q * pe) for pe in pattern_exact]
             else:
+                # The caller supplied float charges: `p` is the OPERAND's own
+                # value, so this is one multiply of two given doubles, not a
+                # manufactured reciprocal. Owned by P-C with the other
+                # operand-carried sites.
                 scaled = [phi * p for p in pattern]
             Lm = magnetic_laplacian(n, el, wl, charges=scaled)
             eigvals, _V = hermitian_eigendecompose(Lm)
@@ -7414,10 +7442,14 @@ def _eph_sparse_coeffs(
                 t_next = 2.0 * cosn[j] * t_cur - t_prev
                 coeff[k] += fj * t_next
                 t_prev, t_cur = t_cur, t_next
-        inv = 1.0 / M
-        coeff[0] *= inv
+        # rc477 (`#T1188`): ONE rounding per term. `inv = 1.0/M` is itself
+        # correctly rounded, but `coeff[k] * inv` rounds a SECOND time -- and
+        # the second is not repairable by fixing the first. Dividing instead
+        # is one correctly rounded operation, and `* 2.0` before it is exact
+        # (a power of two), so the 2/M factor costs nothing extra.
+        coeff[0] /= M
         for k in range(1, M):
-            coeff[k] *= 2.0 * inv
+            coeff[k] = coeff[k] * 2.0 / M
         thresh2 = (tol * tol) * scale2
         m_eff = 0
         for k in range(M - 1, -1, -1):

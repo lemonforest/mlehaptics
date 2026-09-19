@@ -27,6 +27,7 @@ from __future__ import annotations
 from typing import List, Optional
 
 from srmech.cascade import spectral_cascades as _sc
+from srmech.math.q import Q as _Q   # rc477 (`#T1188`): fftfreq's exact term
 
 
 def _is_nested(seq) -> bool:
@@ -153,8 +154,25 @@ def fftfreq(n: int, d: float = 1.0):
 
     Returns ``[0, 1, ..., n//2-1, -(n//2), ..., -1] / (n*d)`` — integer bin
     indices (Class I cyclic-group positions on the transformed axis) scaled by
-    the carrier ``1/(n*d)``. No transcendentals; a plain ``List[float]``."""
-    val = 1.0 / (n * d)
+    the carrier ``1/(n*d)``. No transcendentals; a plain ``List[float]``.
+
+    ⚠️ **Accuracy (rc477, `#T1188`): each SERVED element is now the correctly
+    rounded double of ``i/(n·d)``.** Through rc476 the op built
+    ``val = 1.0/(n*d)`` and returned ``[i * val for i in idx]`` — two roundings
+    per element, and the served list missed the correctly rounded value on
+    **7149 of 19972** seeded ``(n, d, i)``. Repairing ``val`` alone is NOT
+    enough and that is the measurement the first pass got wrong: forming the
+    scalar exactly and still multiplying leaves **5161 of 19972** wrong,
+    because ``val`` is not what this op serves. Projecting the WHOLE term once,
+    per element, misses **0 of 19972**. A ``float`` ``d`` IS an exact rational,
+    so no operand is approximated on the way in."""
     half = (n - 1) // 2 + 1
     idx = list(range(0, half)) + list(range(-(n // 2), 0))
-    return [i * val for i in idx]
+    try:
+        d_n, d_d = float(d).as_integer_ratio()
+    except (OverflowError, ValueError):      # a non-finite d has no exact pair
+        return [i * (1.0 / (n * float(d))) for i in idx]     # unchanged route
+    den = d_n * n
+    if den == 0:
+        return [i * (1.0 / (n * float(d))) for i in idx]     # the shipped raise
+    return [float(_Q(i * d_d, den)) for i in idx]
