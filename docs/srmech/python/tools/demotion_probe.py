@@ -332,7 +332,17 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     and the docstring, can the caller predict the returned value is not the
     exact one?*): **41 are TOPICAL MISREADS**, leaving **182 substantive**
     (rc471's pair).
-    rc476 (`#T1188`) moves the pair to **237 / 41 / 196** — ONE op joins, on its
+    rc477 (`#T1188`) moves the pair to **238 / 41 / 197** — ONE op joins, on
+    its OWN docstring with the single label ``rounding``:
+    ``srmech.cascade.vec_scale``, which rc477 gave a projection step it did
+    not have. An exact scale against float leaves is multiplied EXACTLY and
+    projected ONCE, so the element is the correctly rounded ``v[i]·s`` and the
+    vector stays in the carrier its own leaves elected; the docstring now
+    states that contract, which is what declares. The reading is SUBSTANTIVE
+    — the op really does round its own last mile — so it is NOT pinned as a
+    topical misread and the substantive figure moves with the lexical one.
+    Before it, rc476 (`#T1188`) moved the pair to **237 / 41 / 196** — ONE op
+    joined, on its
     OWN docstring: ``klein_gordon_dispersion``, whose rc476 repair reads its
     operand exactly (it demoted a 3-momentum with ``[float(x) for x in ...]``
     before forming |k|² AND before the root) and whose docstring now STATES
@@ -354,11 +364,15 @@ WHAT THIS PROBE CANNOT SEE — required disclosure
     exists for, inside the file that carries the warning — and
     ``test_r3_reader_rc470.py`` now reads THIS paragraph's pair back against
     the live count, so the next move cannot leave it behind again.
-    ⚠️ **QUOTE THE PAIR, NEVER THE 196 ALONE.** 237 is LEXICAL and
-    regenerable from this tree by anyone; 196 is 237 minus a HAND-MAINTAINED
+    ⚠️ **QUOTE THE PAIR, NEVER THE 197 ALONE.** 238 is LEXICAL and
+    regenerable from this tree by anyone; 197 is 238 minus a HAND-MAINTAINED
     by-name ledger, so it is exactly as fresh as the last hand-read and no
-    fresher. A single "195 substantive declarations" implies a measurement
-    this instrument cannot make.
+    fresher. A single "197 substantive declarations" implies a measurement
+    this instrument cannot make. (This paragraph quoted 237 / 196 until
+    rc477 and "195 substantive" in its own last sentence until then too —
+    the sentence above it had already moved twice. The read-back gate sees
+    the PAIR sentence, not this one, which is why this one is the half that
+    kept ageing.)
     They are pinned BY NAME with a reason and a class in
     ``tests/test_r3_reader_rc470.py``'s ``_RESIDUAL_TOPIC_MISREADS``, and the
     classes are OTHER-CARRIER 16 (``QMat``/``Poly``: *"the bigint exact peer of
@@ -1439,20 +1453,32 @@ def declaration_hits(fn) -> List[str]:
     / 3.14.7: the folded label MAP was byte-identical on all five, all 223
     rows, sha256 ``b43563f9e417da49…`` (222 rows / ``06f93439fe15b27f…`` at
     rc470; rc471's W6 prose added one, hand-read at
-    ``_DECLARED_LABEL_MAP_DIGEST``). rc473's repair round 1 (`#T1188`)
-    moved the map to **237 rows** at ``585c90f411e1b48e…``, with membership
-    unchanged: ONE label moved, on ``kepler_solve``'s own docstring, and the
-    map is byte-identical on CPython 3.10.21 and 3.12.3. Before it, rc472
+    ``_DECLARED_LABEL_MAP_DIGEST``). rc477 (`#T1188`)
+    moved the map to **238 rows** at ``c1f683581d46b627…``, ONE op joining on
+    its own docstring (``srmech.cascade.vec_scale``, label ``rounding``), and
+    the map is byte-identical on CPython 3.10.21 and 3.12.3. Before it, rc476
+    took it to 237 rows at ``585c90f411e1b48e…`` (``klein_gordon_dispersion``
+    joining, same two interpreters); rc473's repair round 1 took it to
+    ``aeca4d386e25e900…`` with membership unchanged at 236 — ONE label moved,
+    on ``kepler_solve``'s own docstring; and rc472
     took the map to 236 rows at ``ee4922b5817ead0c`` (232 rows at
     ``1be7956c86ddd197`` after its C2, 236 after C3), on CPython 3.12.3
     ALONE: thirteen own-docstring ACCURACY paragraphs, none touching the
     delegate walk, so the five-interpreter re-measure is OWED by the next rc
     that touches that walk — the ⚠️ chain at ``_DECLARED_LABEL_MAP_DIGEST``
-    says the same.
+    says the same. rc476 and rc477 did not touch it either, so the debt
+    stands where rc472 left it.
     (This paragraph carried the rc471 pair as if live until the rc472 repair
     pass; ``tests/test_r3_reader_rc470.py`` now reads the count and digest
-    prefix back from it.) That is the LABEL map and not merely the count,
-    which matters because of the residue in the next paragraph.
+    prefix back from it. ⚠️ And the read-back gate reads only the FIRST such
+    sentence, which is how the rc476 pass came to patch the numbers INSIDE
+    rc473's sentence and leave it reading "rc473 … moved the map to 237 rows
+    at 585c90f4…" — a green gate over a mis-attributed history, since the
+    gate has no opinion about whose move a sentence describes. rc477
+    re-separates them: the live move goes FIRST, in its own sentence, and
+    every earlier one keeps its own rc and its own digest.) That is the LABEL
+    map and not merely the count, which matters because of the residue in the
+    next paragraph.
 
     ⚠️ **WHAT THE FOLD DOES NOT FIX, named so it is not rediscovered as a
     surprise.** The loop ``break``s at the first hit-bearing delegate, so

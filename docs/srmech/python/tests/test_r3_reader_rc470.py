@@ -544,15 +544,32 @@ def test_group_d_the_case_policy_is_wired_not_declared() -> None:
 #: repair pass: with only rc471's line in that form, the harness read
 #: (223, 41, 182) against a tree measuring (236, 41, 195) and printed RED for
 #: its own staleness, not the gate's.
-#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 237 is LEXICAL and
-#: regenerable by anyone with this tree; 196 is 237 minus a HAND-MAINTAINED
-#: ledger, so it is only as fresh as the last hand-read. Quoting 196 alone
+#: MEASURED at 0.9.0rc477: 238 DECLARED, 41 pinned here, **197 substantive**
+#: (`#T1188`) — the +1 is EXACTLY ONE op, ``srmech.cascade.vec_scale``,
+#: reading ``rounding`` on its OWN docstring (no ``(via X)`` credit, so no
+#: delegate and no ``co_names`` ORDER is involved), and the ledger stays 41.
+#: It declares because rc477 gave the op a projection step it did not have:
+#: when ``v``'s leaves are float and ``s`` is exact the product is formed
+#: EXACTLY and projected ONCE, and the docstring now states that the element
+#: is the correctly rounded ``v[i]·s``. The reading is SUBSTANTIVE — the op
+#: really does round its own last mile — so it is NOT added to
+#: :data:`_RESIDUAL_TOPIC_MISREADS` below and the substantive figure moves
+#: with the lexical one. This line is the LAST in the ONE-LINE form, so it is
+#: the one ``tools/rc470_figures.py`` parses; the four above are history.
+#: ⚠️ **THE BASELINE IS QUOTABLE ONLY AS A PAIR.** 238 is LEXICAL and
+#: regenerable by anyone with this tree; 197 is 238 minus a HAND-MAINTAINED
+#: ledger, so it is only as fresh as the last hand-read. Quoting 197 alone
 #: implies a measurement the instrument cannot make. (This paragraph said
 #: 232 / 191 — the C2 pair — until the rc472 repair pass, four lines below
 #: the C3 paragraph that moved it: the same slip, in the same rc, as
 #: ``tools/demotion_probe.py``'s disclosure 10, which
 #: ``test_group_e_the_probes_own_disclosures_quote_the_live_figures`` below
-#: now reads back against the tree.)
+#: now reads back against the tree. It then said 236 / 195 until rc476 and
+#: 237 / 196 until rc477; each of those moves was caught by CI rather than by
+#: the rc that caused it, which is the argument for the read-back gate and
+#: not against it — the gate is what NAMES the surface, and the sweep that
+#: follows a rename of the figure has to cover this file, the probe's two
+#: disclosures and the LIVING CHANGELOG entry, three surfaces, every time.)
 #: ⚠️ **THIS COMMENT SAID 219 / 39 / 180 UNTIL rc471, AND EVERY ONE OF THE
 #: THREE WAS FALSE.** The pair moved 219/180 -> 222/181 in rc470's last
 #: commit and the pinned ledger moved 39 -> 41 in an earlier one, but this
@@ -819,8 +836,26 @@ _MISREAD_CLASS_COUNTS = {
 #: found the demotion in the same round, by moving that row to DEMOTED the
 #: moment the root became correctly rounded. Same interpreter, same cell,
 #: same reader (``_READER_SIGNATURE`` unmoved).
+#: ⚠️ **MOVED AT rc477 (`#T1188`) — 585c90f411e1b48e -> c1f683581d46b627 —
+#: AND THE COUNT MOVED WITH IT (237 -> 238)**: ONE op joins DECLARED,
+#: ``srmech.cascade.vec_scale``, on its OWN docstring with the single label
+#: ``rounding`` — no delegate, so no ``co_names`` ORDER is involved. Dumped
+#: op by op with this file's own ``_registry`` and the probe's
+#: ``declaration_hits``, pure cells, at BOTH revisions: rc476 declares 237,
+#: rc477 declares 238, EXACTLY ONE entry enters, ZERO leave and ZERO labels
+#: move while membership holds. The cause is that op's OWN docstring: rc477
+#: gave ``vec_scale`` a projection step (an exact ``s`` against float leaves
+#: is multiplied EXACTLY and projected ONCE) and the prose now states the
+#: element is the correctly rounded ``v[i]·s``, which is the ``rounding``
+#: cue reading on a contract the op really keeps. Re-measured byte for byte
+#: on CPython 3.10.21 and 3.12.3 in the same pure cell: 238 rows and this
+#: digest on both, with ``_READER_SIGNATURE`` UNMOVED — so this is a PROSE
+#: change, never a reader-vocabulary change. Found by CI on ``b3fb3b110``
+#: (six cells, the same three assertions in each); ``tools/ripple_gates.txt``
+#: does not list this file, which is the same reason rc473's move was found
+#: by CI rather than by the round's local ripple run.
 _DECLARED_LABEL_MAP_DIGEST = (
-    "585c90f411e1b48ea7f5b748ed7bae4752a6ab1dec09f19641a65a39ccf74aea")
+    "c1f683581d46b6271151fe7f071349f2fa4fbad7b23fd08e344bdea1e9a70621")
 
 
 def _declared_label_map_digest(pairs) -> str:
@@ -963,27 +998,39 @@ def test_group_e_the_ledger_is_internally_consistent() -> None:
     # since DECLARED would hold its count (236 at rc472; 223 when this was
     # written at rc471) everywhere while the credited delegate silently
     # differed.
-    assert len(declared) == 237, (
-        f"lexical DECLARED is {len(declared)}, not 237. Every count in this "
-        f"file, in tools/demotion_probe.py's disclosures and in the rc472 "
-        f"CHANGELOG entry is quoted against that figure (223 through rc471; "
+    assert len(declared) == 238, (
+        f"lexical DECLARED is {len(declared)}, not 238. Every count in this "
+        f"file, in tools/demotion_probe.py's TWO disclosures (disclosure 10 "
+        f"and the declaration_hits docstring) and in the LIVING CHANGELOG "
+        f"entry is quoted against that figure — three surfaces, and a sweep "
+        f"that moves the figure must cover all three (223 through rc471; "
         f"rc472's nine scalar-lane own-docstring ACCURACY paragraphs are the "
-        f"+9 and its four required-scalar-fill paragraphs the +4). ⚠️ IF "
-        f"THIS IS 233, the comprehension fold in demotion_probe._delegate_names "
-        f"is not running: 220 was the PRE-FIX reading of CPython <= 3.11 at "
-        f"rc471, MEASURED ON THAT TREE by replacing _delegate_names with a "
-        f"bare code.co_names — 220 on 3.10.21 and 3.11.16, 223 on 3.12.3 and "
-        f"3.14.7 without the fold; 223 on all five with it — and the three "
-        f"ops the fold reveals are unchanged by rc472. (rc470 measured the "
-        f"same three-op split as 219/222 on its own prose.) RESTORE THE FOLD "
+        f"+9 and its four required-scalar-fill paragraphs the +4; rc476's "
+        f"klein_gordon_dispersion the +1 to 237; rc477's cascade.vec_scale "
+        f"the +1 to 238). ⚠️ IF "
+        f"THIS IS 235, the comprehension fold in demotion_probe._delegate_names "
+        f"is not running on a CPython <= 3.11 cell. RE-MEASURED ON THIS TREE at "
+        f"rc477 by replacing _delegate_names with a bare code.co_names (the "
+        f"exact pre-fix reader rc470's last commit replaced, and it takes a "
+        f"CODE object — pass it a FUNCTION and every delegate vanishes, which "
+        f"reads 175 and is a different mutation): 235 on 3.10.21 and 238 on "
+        f"3.12.3 without the fold, 238 on both with it, and the fold reveals "
+        f"EXACTLY three ops — apokatastasis.apagodu_zeilberger, "
+        f"apokatastasis.zeilberger and signal_processing.heat_kernel. ⚠️ THIS "
+        f"SENTINEL READ 233 UNTIL rc477 and was two moves stale: 233 was "
+        f"236 - 3 at rc472, rc476 did not move it to 234, and the figure is "
+        f"only meaningful as (this count - 3). (rc471 measured the same "
+        f"three-op split as 220/223, rc470 as 219/222, on their own trees.) "
+        f"RESTORE THE FOLD "
         f"rather than moving this number — two of the three ops it reveals "
         f"are PINNED misreads above and would fall out of the ledger, "
-        f"reddening the parametrized test. The four assertions above have "
+        f"reddening the parametrized test (re-confirmed at rc477: the two are "
+        f"the zeilberger pair). The four assertions above have "
         f"already cleared the reader, so this is a DELEGATE-FOLLOW or PROSE "
         f"change, never a reader-vocabulary change. {_reader_identity()}")
     unknown = sorted(set(_RESIDUAL_TOPIC_MISREADS) - declared)
     assert not unknown, f"pinned but not DECLARED: {unknown}"
-    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 196
+    assert len(declared) - len(_RESIDUAL_TOPIC_MISREADS) == 197
 
 
 #: rc472 repair pass (`#T1188`): the two sentences in ``tools/demotion_probe.py``

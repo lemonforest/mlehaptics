@@ -83,4 +83,53 @@ SRMECH_NODISCARD srmech_status_t srmech_sqrt_scaled(uint64_t num,
  */
 SRMECH_NODISCARD srmech_status_t srmech_inv_sqrt(double x, double *out);
 
+/* *out = the double the sqrt core's (root, p) pair projects to -- the 53-bit
+ * rounding done IN INTEGERS, exactly as srmech_sqrt_scaled does it.
+ *
+ * rc477 (`#T1188`). The ONLY caller is srmech_axis_unit, whose radicand is a
+ * bignum and therefore cannot cross srmech_sqrt_core's uint64 num/den wire.
+ * Publishing the projection rather than letting that caller re-derive the
+ * rounding is the same rule this header opens with: one rounding rule, in one
+ * place. `root` must be the core's own post-condition shape -- at least 2^53,
+ * 54 to 57 bits wide -- and anything else is SRMECH_ERR_BAD_INPUT with
+ * *out = 0.0, never a served value.
+ */
+SRMECH_NODISCARD srmech_status_t srmech_sqrt_project_root(uint64_t root,
+                                                          int32_t p,
+                                                          double *out);
+
+/* out[0..n-1] = the CORRECTLY ROUNDED unit of the pure-imaginary axis `v`,
+ * per component: out[j] = CR( sign(v[j]) * sqrt(v[j]^2 / SUM v^2) ).
+ *
+ * rc477 (`#T1188`). The float recipe every axis resolver used -- one root,
+ * one reciprocal, one multiply -- rounds THREE times, and the second and third
+ * are not repaired by fixing the first: measured, `1.0/float(sqrt(k))` misses
+ * the correctly rounded 1/sqrt(k) on 101 of the 399 integers k in 2..400, and
+ * even a perfectly correctly rounded double is 77 Q61 words off the nearest
+ * word at k=3 because 53 bits cannot address a 61-bit grid. This route reads
+ * each component as the exact dyadic rational it already is, puts them over a
+ * common denominator (which CANCELS out of v[j]/||v||), and takes ONE root of
+ * the exact ratio -- the same cascade the Python `_resolve_mu4` takes, so the
+ * two projections agree by construction rather than by matching float-op order.
+ *
+ * THE DECLARED DOMAIN. The exact route needs the exponent SPREAD of the
+ * non-zero components to be bounded: with e_j the exact binary exponent of
+ * v[j], it requires max(e) - min(e) <= SRMECH_AXIS_MAX_SPREAD_BITS. Outside
+ * that it returns SRMECH_ERR_NOT_IMPL and writes nothing, which is the shipped
+ * native-ceiling shape (`_q61_couple_fits_native`, `_try_c_two_rationals`): the
+ * Python caller then runs the COMPLETE pure path, which has no ceiling and
+ * computes the same value. A bare-C host gets an honest status rather than a
+ * value rounded in a way this file cannot certify.
+ *
+ * Refuses n == 0, n > 8, a NULL argument, a non-finite component, and an
+ * all-zero axis (SRMECH_ERR_BAD_INPUT). v[0] is NOT required to be zero: this
+ * normalises whatever vector it is given, and the pure-imaginary pin belongs to
+ * the caller that has the vocabulary to name it.
+ */
+#define SRMECH_AXIS_MAX_SPREAD_BITS 256
+#define SRMECH_AXIS_MAX_DIM 8
+
+SRMECH_NODISCARD srmech_status_t srmech_axis_unit(const double *v, size_t n,
+                                                  double *out);
+
 #endif /* SRMECH_SQRT_INTERNAL_H */

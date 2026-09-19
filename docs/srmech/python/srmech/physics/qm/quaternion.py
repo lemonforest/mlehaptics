@@ -128,16 +128,22 @@ _RETRIEVED_AT = "2026-07-03T00:00:00Z"
 #: once at import; the ×4 is an exact power of two). NO ``math.pi``.
 _PI = 4.0 * float(_ratan(1.0))
 
-#: 1/√3 for the body-diagonal axis, via the Class-N rational sqrt cascade.
-_S3 = 1.0 / float(_rsqrt(3.0))
-
-#: Named unit pure-imaginary quaternion axes (``μ̂² = −1``). ``'ijk'`` is the
-#: equal-weight body diagonal ``(i+j+k)/√3`` (the coupling axis, F436).
+#: Named pure-imaginary quaternion axes as INTEGER DIRECTIONS (``μ̂² = −1``
+#: after normalisation). ``'ijk'`` is the equal-weight body diagonal
+#: ``(i+j+k)``, whose unit is ``(i+j+k)/√3`` (the coupling axis, F436).
+#:
+#: ⚠️ rc477 (`#T1188`): the table used to STORE the float triple
+#: ``(0.0, _S3, _S3, _S3)`` with ``_S3 = 1.0 / float(_rsqrt(3.0))`` — a floored
+#: root, a reciprocal and a multiply. The constant sat 179 Q61 words above the
+#: nearest word and served ``0.5773502691896258`` where the correctly rounded
+#: ``1/√3`` is ``0.5773502691896257``. A NAMED AXIS IS A LABEL AND HAS NO
+#: CARRIER: the direction is integers and the ``1/√k`` belongs inside the
+#: radicand. The float reading is DERIVED by :func:`_resolve_mu4` now.
 _MU_AXES = {
-    "i": (0.0, 1.0, 0.0, 0.0),
-    "j": (0.0, 0.0, 1.0, 0.0),
-    "k": (0.0, 0.0, 0.0, 1.0),
-    "ijk": (0.0, _S3, _S3, _S3),
+    "i": (0, 1, 0, 0),
+    "j": (0, 0, 1, 0),
+    "k": (0, 0, 0, 1),
+    "ijk": (0, 1, 1, 1),
 }
 
 #: rc468 (`#T1188`): the exact-ℚ scalar under the name the shared
@@ -323,22 +329,51 @@ def _resolve_mu4(mu, op: str) -> List[float]:
 
     Accepts a named axis ``'i'``/``'j'``/``'k'``/``'ijk'`` (exact table
     values) or a 4-sequence pure-imaginary vector, normalised via the Class-N
-    :func:`srmech.math.rational.sqrt` cascade (never libm)."""
+    :func:`srmech.math.rational.sqrt` cascade (never libm).
+
+    ⚠️ rc477 (`#T1188`): each component is the **correctly rounded double** of
+    ``sign(wᵢ)·√(wᵢ²/S)`` over the INTEGER direction
+    :func:`_mu_direction4` reads. Through rc476 this divided by a projected
+    root — ``inv = 1.0 / float(_rsqrt(norm_sq))`` then a multiply, three
+    roundings — which misses the correctly rounded double on 101 of the 399
+    integers in 2..400 and loses an exactly representable unit: ``[0,3,4,0]``
+    was served ``0.6000000000000001`` and is served ``0.6`` now."""
+    return _qalg._axis_float(*_mu_direction4(mu, op))
+
+
+def _mu_direction4(mu, op: str):
+    """``(w, S)`` — the quaternion axis as an INTEGER direction and
+    ``S = Σwᵢ²`` (rc477, `#T1188`).
+
+    A NAMED axis is a LABEL and is read straight out of :data:`_MU_AXES`. A
+    general vector is validated on the FLOAT reading — so every refusal below
+    is byte-identical to the one this op has always raised — and READ on the
+    exact one, ``int`` / ``Q`` / ``(num, den)`` leaves as themselves and a
+    ``float`` leaf as :meth:`~srmech.math.q.Q.from_float`, which is the same
+    composition the coupler's wire reader uses."""
     if isinstance(mu, str):
         if mu in _MU_AXES:
-            return list(_MU_AXES[mu])
+            return _qalg._integer_direction([Q(c, 1) for c in _MU_AXES[mu]])
         raise ValueError(
             f"{op}: mu must be one of {sorted(_MU_AXES)} or a unit "
             f"pure-imaginary 4-vector; got {mu!r}"
         )
-    v = _as_quaternion(mu, op)
+    raw = _as_quaternion(mu, op)
+    v = [float(c) for c in raw]                 # the REFUSAL reading, unchanged
     if v[0] != 0.0:
         raise ValueError(f"{op}: a general mu must be pure-imaginary (e0 == 0)")
     norm_sq = v[1] * v[1] + v[2] * v[2] + v[3] * v[3]
     if norm_sq == 0.0:
         raise ValueError(f"{op}: mu must be a non-zero pure-imaginary vector")
-    inv = 1.0 / float(_rsqrt(norm_sq))
-    return [0.0, v[1] * inv, v[2] * inv, v[3] * inv]
+    return _qalg._integer_direction([_axis_scalar(c) for c in raw])
+
+
+def _axis_scalar(c) -> "Q":
+    """One axis component as the exact rational it already is — the shared
+    leaf reader of :func:`_mu_direction4` (rc477, `#T1188`). A ``float`` IS an
+    exact rational, so this introduces no rounding whatever."""
+    q = _exact_scalar(c)
+    return Q.from_float(float(c)) if q is None else q
 
 
 def _exact_axis4(mu, op: str):
@@ -680,7 +715,18 @@ def _exp_resolved(theta: float, mu: List[float]) -> List[float]:
     """The exp core over an ALREADY-RESOLVED unit ``μ̂`` (never re-normalises —
     the one-resolution parity contract): native ``srmech_quaternion_exp`` when
     present, else the pure Q61 cascade (``rational.{cos,sin}`` projected to
-    float once, then the axis scaling) — byte-exact either way."""
+    float once, then the axis scaling) — byte-exact either way.
+
+    ⚠️ **rc477 (`#T1188`): the AXIS moved; this product did not, and its
+    rate is STATED rather than called "accurate to round-off".** Each
+    component of ``μ̂`` is the correctly rounded double of
+    ``sign(wᵢ)·√(wᵢ²/S)`` now, but ``s * μ̂[i]`` is still ONE float multiply
+    in the carrier the operand elected, so the product is not the
+    correctly rounded ``sin θ · wᵢ/√S``. **Measured over 2000 seeded angles
+    on the body diagonal: 2265 of 6000 components differ from the
+    once-projected exact product** (``tests/test_axis_words_are_nearest_rc477
+    .py::test_the_twiddle_product_rate_is_stated_not_assumed``). The site is
+    unchanged and the bound is a number, which is the contract."""
     native = _try_native_exp(theta, mu)
     if native is not None:
         return native

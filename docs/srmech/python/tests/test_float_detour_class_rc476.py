@@ -195,25 +195,13 @@ def _s1_live():
 #: deadline deliberately and say why in the same commit. Silence is the one
 #: outcome the clause exists to prevent.
 S1_RESIDUAL: "dict[tuple[str, int], tuple[str, str, str]]" = {
-    # ── G1 axis constants: a NAMED axis is a label and has no carrier, so the
-    #    reciprocal belongs inside the radicand. Owned by the G1/D2 group.
-    ("python/srmech/cascade/hypercomplex_dft.py", 121): (
-        "0.9.0rc480", "_S3 = 1.0 / float(_rsqrt(3.0))", "G1 axis CF-003"),
-    ("python/srmech/cascade/hypercomplex_dft.py", 847): (
-        "0.9.0rc480", "inv = 1.0 / float(_rsqrt(float(hi - 1)))", "G1 CF-004"),
-    ("python/srmech/physics/qm/octonion.py", 140): (
-        "0.9.0rc480", "_S3 = 1.0 / float(_rsqrt(3.0))", "G1 axis CF-007"),
-    ("python/srmech/physics/qm/octonion.py", 141): (
-        "0.9.0rc480", "_S7 = 1.0 / float(_rsqrt(7.0))", "G1 axis CF-008"),
-    ("python/srmech/physics/qm/octonion.py", 791): (
-        "0.9.0rc480", "inv = 1.0 / float(_rsqrt(float(norm_sq)))", "G1 CF-010"),
-    ("python/srmech/physics/qm/quaternion.py", 132): (
-        "0.9.0rc480", "_S3 = 1.0 / float(_rsqrt(3.0))", "G1 axis CF-006"),
-    ("python/srmech/physics/qm/quaternion.py", 340): (
-        "0.9.0rc480", "inv = 1.0 / float(_rsqrt(norm_sq))", "G1 CF-009"),
-    ("c/src/srmech_compose_run.c", 2405): (
-        "0.9.0rc480", "*out = 1.0 / f;",
-        "G1 CF-011 cr_inv_sqrt, the C twin of the Python shape; D2 deletes it"),
+    # ── The EIGHT G1 axis rows this table shipped at rc476 are GONE at rc477
+    #    (`#T1188`), REPAIRED rather than re-dated: `_S3` / `_S7` and the two
+    #    `_resolve_mu` reciprocals are deleted, the named-axis tables hold
+    #    INTEGER DIRECTIONS and the 1/√k lives inside the radicand; and
+    #    `cr_inv_sqrt` is deleted outright, absorbed by the `srmech_inv_sqrt`
+    #    rc476 had already shipped and left unused. The ceiling drops 15 → 7
+    #    in the same commit, which is what this table's own message asks for.
     # ── OPERAND-CARRIED: the value divided is the CALLER's float, inside an
     #    iterative FPU kernel. SCHEDULED FOR REPAIR, not exempt — the
     #    operand-carried exemption was withdrawn, and P-C owns these.
@@ -243,7 +231,10 @@ S1_RESIDUAL: "dict[tuple[str, int], tuple[str, str, str]]" = {
 
 #: Down-only. It is an EQUALITY, not a ``<=``: a ceiling left above the live
 #: count is invisible slack a new site could be added into with nothing firing.
-CEIL_S1_RESIDUAL: int = 15
+#:
+#: rc477 (`#T1188`): **15 → 7**. The eight G1 axis rows are repaired, not
+#: re-dated — see the note at the head of :data:`S1_RESIDUAL`.
+CEIL_S1_RESIDUAL: int = 7
 
 #: G8-P2, test side. Down-only rather than strict zero, and the reason is not
 #: difficulty: the remaining row is a comment that correctly DESCRIBES a stdlib
@@ -314,9 +305,17 @@ def test_s1_residual_never_rises() -> None:
     """Down-only, seeded at the rc476 measurement.
 
     Strict zero is arithmetically impossible here and saying so is the point:
-    8 of the 15 rows are G1 constants another group owns and 7 are
-    operand-carried sites P-C owns. A gate that demanded 0 today would have to
-    be disabled today.
+    the 7 remaining rows are the operand-carried sites P-C owns at
+    ``0.9.0rc482``. A gate that demanded 0 today would have to be disabled
+    today.
+
+    ⚠️ rc477 (`#T1188`): this said "8 of the 15 rows are G1 constants another
+    group owns and 7 are operand-carried". The G1 eight are CLOSED — the axis
+    tables are integer directions and ``cr_inv_sqrt`` is deleted — so the
+    population is 7 and the ceiling is 7. The deadline clause below is what
+    made that enforceable rather than optional: those rows named
+    ``0.9.0rc480``, and would have failed this file at that release with
+    nothing else in the tree firing.
 
     ⚠️ 15 and not the 16 this rc was briefed with. The difference is the MASK,
     not a repair: the sixteenth row was ``qalg.py:743``, a DOCSTRING sentence
@@ -569,16 +568,37 @@ def test_the_mask_keeps_code_and_drops_prose(tmp_path, lang, body) -> None:
     assert not hits, f"the scan counted PROSE as a site: {hits}"
 
 
-def test_the_c_scan_sees_the_dereference_statement() -> None:
-    """``compose_run.c:2405`` is the anti-vacuity member, named explicitly.
+def test_the_c_scan_sees_the_dereference_statement(tmp_path) -> None:
+    """A DEREFERENCE target must stay visible to the C scan.
 
-    It is the row the inherited leading-``*`` filter silently dropped, and the
-    row anchoring the pattern to the root names would also drop. Naming it here
-    means either mistake fails a test instead of shrinking a number.
+    ⚠️ rc477 (`#T1188`): this test named ``compose_run.c:2405``
+    (``*out = 1.0 / f;``) as a LIVE member, and rc477 DELETED that line —
+    ``cr_inv_sqrt`` is absorbed by ``srmech_inv_sqrt``. A repair that removes
+    the last live instance of a shape leaves an anti-vacuity test with nothing
+    to point at, and the wrong answer is to delete the test: what it guards is
+    the PREDICATE's reach, not the tree's content. So it is re-anchored to a
+    PLANT — the house pattern next door
+    (:func:`test_the_scan_fires_on_a_planted_site`), which cannot go stale when
+    a site is repaired.
+
+    The property is unchanged and is the one the inherited leading-``*`` filter
+    got wrong: a statement whose TARGET is a dereference is code, and anchoring
+    the pattern to the root names would drop it too. Both mistakes fail here.
     """
-    live = {(f, ln) for f, ln, _t in _s1_live()}
-    assert ("c/src/srmech_compose_run.c", 2405) in live, (
-        "the C scan no longer sees compose_run.c:2405 (`*out = 1.0 / f;`) — "
-        "either the line moved (update S1_RESIDUAL) or the predicate was "
-        "narrowed in a way that blinds it to a real member"
+    f = tmp_path / "planted_deref.c"
+    f.write_text("int x;\n    *out = 1.0 / f;\n", encoding="utf-8")
+    hits = _scan([str(tmp_path)], (".c",), S1_C, _mask_c)
+    assert hits, (
+        "the C scan no longer sees `*out = 1.0 / f;` — the predicate has been "
+        "narrowed in a way that blinds it to a dereference target, which is "
+        "exactly the shape the leading-`*` filter used to drop"
+    )
+    assert hits[0][2] == "*out = 1.0 / f;", (
+        f"the scan reported {hits[0][2]!r} rather than the planted statement"
+    )
+    # ...and the tree really has none left, which is WHY the plant is needed.
+    live = {(f_, ln) for f_, ln, _t in _s1_live()}
+    assert ("c/src/srmech_compose_run.c", 2405) not in live, (
+        "compose_run.c:2405 is live again — cr_inv_sqrt was deleted at rc477 "
+        "and its absorber is srmech_inv_sqrt; if it came back, repair the site"
     )

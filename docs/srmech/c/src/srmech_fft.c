@@ -194,9 +194,15 @@ static srmech_status_t fft_radix2(const double *in, double *out, size_t n,
         fft_butterflies(out, n, tw);
     }
     if (inverse != 0) {
-        double inv = 1.0 / (double)n;
+        /* rc477 (`#T1188`): ONE rounding per element. `1.0/(double)n` is
+         * itself correctly rounded, but `out[i] *= inv` rounds a SECOND time
+         * and the second is not repaired by fixing the first -- measured,
+         * x*(1.0/N) misses CR(x/N) on 5354 of 20000 seeded x while x/N misses
+         * 0 of 20000. The Python peer forms the exact Q(1, n) and projects
+         * once, which is the same value. */
+        const double nd = (double)n;
         for (size_t i = 0; i < 2u * n; i++) {
-            out[i] *= inv;
+            out[i] /= nd;
         }
     }
     return SRMECH_OK;
@@ -279,7 +285,10 @@ static void fft_pointwise_mul(double *fa, const double *fv, size_t m)
 static void fft_bluestein_finish(const double *b, const double *conv,
                                  size_t n, int inverse, double *out)
 {
-    double inv = (inverse != 0) ? (1.0 / (double)n) : 1.0;
+    /* rc477 (`#T1188`): the 1/n is a DIVISION, one rounding, not a rounded
+     * reciprocal and then a multiply. Dividing by 1.0 on the forward path is
+     * exact, so that arm is byte-identical to the shipped one. */
+    const double nd = (inverse != 0) ? (double)n : 1.0;
     assert(out != NULL);
     assert(n >= 1u);
     for (size_t k = 0; k < n; k++) {
@@ -287,8 +296,8 @@ static void fft_bluestein_finish(const double *b, const double *conv,
         double bi = b[2u * k + 1u];
         double cr = conv[2u * k];
         double ci = conv[2u * k + 1u];
-        out[2u * k] = (br * cr - bi * ci) * inv;
-        out[2u * k + 1u] = (br * ci + bi * cr) * inv;
+        out[2u * k] = (br * cr - bi * ci) / nd;
+        out[2u * k + 1u] = (br * ci + bi * cr) / nd;
     }
 }
 

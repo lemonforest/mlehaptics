@@ -63,9 +63,12 @@ file.
 
 from __future__ import annotations
 
-from typing import Any, List, Sequence, Tuple
+from typing import TYPE_CHECKING, Any, List, Sequence, Tuple
 
 from .atoms import reorient
+
+if TYPE_CHECKING:                       # rc477 (`#T1188`): vec_scale's widened
+    from srmech.math.q import Q         # declaration names the exact carrier
 
 
 def seq_len(seq: Sequence) -> int:
@@ -192,11 +195,47 @@ def vec_add(a: Sequence[float], b: Sequence[float]) -> List[float]:
     return [a[i] + b[i] for i in range(len(a))]
 
 
-def vec_scale(v: Sequence[float], s: float) -> List[float]:
+def vec_scale(v: "Sequence[float | Q]", s: "float | Q") -> "List[float] | List[Q]":
     """Class M (accumulate): elementwise ``v * s`` — mirrors the shipped DFT
     output scale ``[acc[i] * scale for i in range(dim)]`` bit-exactly.
-    """
-    return [v[i] * s for i in range(len(v))]
+
+    ⚠️ rc477 (`#T1188`): the DECLARATION is widened to what this op has always
+    ACCEPTED. It was written ``(v: Sequence[float], s: float) -> List[float]``
+    and its MCP coercer has promoted a ``float`` scale to ``Q`` since rc420, so
+    ``vec_scale([1.0, -2.0], Q(1, 3))`` already returned ``[Q(1, 3), Q(-2, 3)]``
+    — measured at rc476, before this release wrote a line. The declared type was
+    a live LIE, not a contract this rc breaks. It is stated now because
+    ``dft_scale`` returns the exact ``Q(1, n)``, so the exact carrier reaches
+    this op on every declared-chain inverse rather than only on a dyadic one,
+    and a declaration nobody could rely on becomes one somebody will.
+
+    **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466), and that rule is
+    what decides the mixed case. ``v`` is the DATA and ``s`` is the scale a
+    caller hands in; when ``v``'s leaves are float and ``s`` is exact, the
+    product is formed EXACTLY and projected ONCE, so the element is the
+    correctly rounded ``v[i]·s`` and the vector stays in the carrier its own
+    leaves elected. Promoting the whole vector to the scale's carrier would be
+    the OP imposing a rung on the operand, which is the thing rc466 forbids.
+
+    ⚠️ rc477 (`#T1188`) MEASURED the consequence of getting that backwards.
+    ``dft_scale`` returns the exact ``Q(1, n)`` since this release, and without
+    the projection below the declared ``quaternion_dft`` / ``octonion_dft``
+    chains returned ``list[list[Q]]`` over a FLOAT sample while the shipped op
+    returned ``list[list[float]]`` — 11 of the catalog's bit-identity proof
+    cases went red, and the divergence is a TYPE before it is a value. With it,
+    the chain and the op are bit-identical again on a float sample AND the
+    chain stays exact end to end on an exact one, which is the whole point of
+    the rc466 drain.
+
+    An exact ``v`` with an exact ``s`` stays exact; a float ``s`` is unchanged
+    in every case, so the float→float path is byte-identical to rc476's."""
+    out = []
+    for i in range(len(v)):
+        p = v[i] * s
+        if isinstance(v[i], float) and not isinstance(p, float):
+            p = float(p)              # ONE rounding, at the operand's own rung
+        out.append(p)
+    return out
 
 
 def dead_band(value, band):

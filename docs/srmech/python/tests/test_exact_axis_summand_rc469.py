@@ -193,8 +193,17 @@ def test_the_float_route_is_byte_for_byte_unchanged() -> None:
     examples carry, asserted rather than commented.
 
     ⚠️ The third case is the one an over-broad edit breaks: a FLOAT sample on
-    an ``'ijk'`` axis must still take the float route, untouched, even though
-    that axis is exactly what this rc changed on the exact arm.
+    an ``'ijk'`` axis must still take the float route, even though that axis is
+    exactly what rc469 changed on the exact arm.
+
+    ⚠️ **rc477 (`#T1188`): the third literal MOVED, and that is that release
+    landing rather than this one breaking.** ``'ijk'`` resolved to
+    ``0.5773502691896258`` — a floored root, a reciprocal and a multiply, three
+    roundings — and resolves to ``0.5773502691896257`` now, the correctly
+    rounded ``1/√3`` (certified by exact integers, never by libm). The first two
+    cases are on ``'i'`` / ``'j'``, whose unit is exactly 1.0, and they are
+    byte-for-byte unchanged — which is what keeps this a measurement of the
+    float ROUTE rather than of the axis.
     """
     xs = [[1.0, 0.5, -0.25, 2.0], [0.0, 1.0, 0.0, -1.0]]
     assert qdft_summand(xs, 1, 1, 2, True, -1, qdft_resolve_mu("i")) == [
@@ -206,8 +215,8 @@ def test_the_float_route_is_byte_for_byte_unchanged() -> None:
         1.222980050563649e-16, 0.0, 0.0, 0.0, 0.0]
     assert qdft_summand([[0.0] * 4, [1.0, 0.0, 0.0, 0.0]], 1, 1, 4, True, -1,
                         qdft_resolve_mu("ijk")) == [
-        6.114900252818245e-17, -0.5773502691896258, -0.5773502691896258,
-        -0.5773502691896258]
+        6.114900252818245e-17, -0.5773502691896257, -0.5773502691896257,
+        -0.5773502691896257]
 
 
 # --------------------------------------------------------------------------
@@ -215,14 +224,24 @@ def test_the_float_route_is_byte_for_byte_unchanged() -> None:
 # --------------------------------------------------------------------------
 
 def test_a_general_vector_wire_with_an_exact_sample_RAISES() -> None:
-    """THE SHARPEST CONTROL IN THIS FILE.
+    """THE SHARPEST CONTROL IN THIS FILE — and rc477 (`#T1188`) SHARPENS IT.
 
-    ``qdft_resolve_mu([0, 3, 0, 4])`` normalises in float and lands on
-    ``[0.0, 0.6000000000000001, 0.0, 0.8]`` — one ULP off ``3/5``, so the
-    DIRECTION is destroyed, not just the magnitude, and ``_exact_axis``
-    correctly returns ``None``. (``_exact_axis`` on the RAW ``(0,3,0,4)``
-    gives ``(0, 3/5, 0, 4/5)`` at ``axis_k = 1``; recovering it here would need
-    a second operand on a chain-internal wire, which is filed, not built.)
+    ``qdft_resolve_mu([0, 3, 0, 4])`` lands on ``[0.0, 0.6, 0.0, 0.8]``: each
+    component the CORRECTLY ROUNDED ``3/5`` and ``4/5``, where through rc476 it
+    was ``0.6000000000000001`` — one ulp above ``3/5``, because the float
+    normalisation rounded three times. **And ``_exact_axis`` STILL returns
+    ``None``**, which is why this control survives the repair and is stronger
+    after it: ``0.6`` is the NEAREST double to ``3/5`` and is not ``3/5``
+    (``Q.from_float(0.6)`` is ``5404319552844595/9007199254740992``), so the
+    wire's ``‖w‖²`` is ``81129638414606685298668707040461 /
+    81129638414606681695789005144064`` — not 1, not ``k·(rational square)``,
+    and there is no exact root of unity along it. **A correctly rounded axis is
+    not an exact direction.** A reader who assumed rc477's repair would make
+    this raise go away would be wrong, which is the whole reason it is measured
+    here rather than reasoned about. (``_exact_axis`` on the RAW ``(0,3,0,4)``
+    does give ``(0, 3/5, 0, 4/5)`` at ``axis_k = 1``; recovering it here would
+    need a second operand on a chain-internal wire, which is filed, not
+    built.)
 
     It must RAISE, not elect the float carrier: a fallthrough was measured to
     return ``['Q','Q','Q','Q']`` over a rounded float64 twiddle, because
@@ -236,7 +255,7 @@ def test_a_general_vector_wire_with_an_exact_sample_RAISES() -> None:
     # ...and the FLOAT sample on the same wire still answers, unchanged: the
     # refusal is about the exact arm's carrier claim, not about the axis.
     assert qdft_summand([[0.0] * 4, [1.0, 0.0, 0.0, 0.0]], 1, 1, 4, True, -1,
-                        wire)[1] == -0.6000000000000001
+                        wire)[1] == -0.6
 
 
 def test_a_non_pure_imaginary_axis_RAISES_and_this_is_what_the_probe_MEETS() -> None:

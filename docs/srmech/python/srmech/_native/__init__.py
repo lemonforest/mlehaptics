@@ -298,6 +298,47 @@ from typing import Optional
 #        ``ws_bound`` on every call, so the stale library's answer is
 #        self-consistent and nothing else notices. This pin is the only refusal.
 #
+# v29 (rc477, `#T1188`) — THE AXIS IS THE NEAREST WORD, AND THE SCALE IS EXACT.
+#        SERVED VALUES MOVE (v21 / v26 / v27 / v28's ground), and nothing else.
+#        Two halves, and neither is the one the prose at each site named.
+#
+#        (1) THE AXIS. Every resolver took the root of the sum of squares, took
+#        its RECIPROCAL, and multiplied each component — three roundings for a
+#        value each docstring called one. rc476 made the root correctly rounded
+#        and that is not enough: the reciprocal rounds again, and even a
+#        perfectly correctly rounded double cannot address a 61-bit grid with
+#        53 bits. (2) THE SCALE. ``1.0 / n`` IS correctly rounded — 0 of the
+#        4999 integers n in 2..5000 miss it — so the reciprocal was never the
+#        defect; the SECOND rounding was, at every consumer's multiply.
+#
+#        MEASURED with an exact integer oracle, no libm in the path:
+#        ``1.0/float(sqrt(k))`` misses the correctly rounded 1/√k on 101 of the
+#        399 integers k in 2..400 where ``float(sqrt(Q(1,k)))`` misses 0; the
+#        Q61 axis words sat 179 above nearest at S=3 and 68 below at S=7, a norm
+#        residue of +619.62 and −361.50 grid units against −0.45 and −1.68 now;
+#        the exactly representable 3-4-5 axis was served 0.6000000000000001 and
+#        is served 0.6; ``x*(1.0/N)`` misses CR(x/N) on 5354 of 20000 seeded x
+#        where ``x/N`` misses 0; and fftfreq's SERVED elements missed on 7149 of
+#        19972 and miss 0 (its internal scalar alone would have left 5161).
+#
+#        At an EXPORTED symbol: srmech_chain_run's qdft_resolve_mu("ijk")
+#        served 0.5773502691896258 and serves 0.5773502691896257;
+#        odft_resolve_mu("diagonal") served 0.3779644730092272 and serves
+#        0.37796447300922725.
+#
+#        The library gains ``srmech_axis_unit`` and ``srmech_sqrt_project_root``
+#        (808 -> 810 `T srmech_*`) and loses the file-local ``cr_inv_sqrt``;
+#        both new names live in the PRIVATE c/src/srmech_sqrt_internal.h with no
+#        srmech.h declaration and no binding in this file, and adding a symbol
+#        has never bumped.
+#
+#        THE PAIRING THIS PIN REJECTS: an rc476 ``.so`` under rc477 Python, or
+#        the reverse. Both load with ``HAS_NATIVE True`` and neither errors —
+#        the stale library just serves the non-nearest axis and the rounded
+#        scale, and the glue here rebuilds them into exact-looking values.
+#        Silent wrong value, no other symptom, which is the shape v21, v26, v27
+#        and v28 bumped for.
+#
 # v28 (rc476, `#T1188`) — THE SQUARE ROOT IS CORRECTLY ROUNDED, AND WAS NOT.
 #        SERVED VALUES MOVE (v21 / v26 / v27's ground), and nothing else.
 #        ``srmech_rational_sqrt`` / ``srmech_sqrt_q61`` computed
@@ -324,7 +365,7 @@ from typing import Optional
 #        the stale library just serves the misrounded root, and the glue here
 #        rebuilds it into an exact-looking ``Q``. Silent wrong value, no other
 #        symptom, which is the shape v21 and v26 bumped for.
-EXPECTED_ABI_VERSION: int = 28
+EXPECTED_ABI_VERSION: int = 29
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-

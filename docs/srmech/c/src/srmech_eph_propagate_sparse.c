@@ -249,12 +249,17 @@ static void ephs_coeffs(uint32_t M, const double *cosn, const double *f_il,
             t_cur = t_next;
         }
     }
-    double inv = 1.0 / (double)M;
-    coeff_il[0] *= inv;
-    coeff_il[1] *= inv;
+    /* rc477 (`#T1188`): ONE rounding per coefficient. `1.0/(double)M` is
+     * correctly rounded, but the MULTIPLY that followed rounded a second time
+     * -- measured, x*(1.0/N) misses CR(x/N) on 5354 of 20000 seeded x. The
+     * `* 2.0` before the divide is exact (a power of two), so the 2/M factor
+     * costs no extra rounding either. */
+    const double Md = (double)M;
+    coeff_il[0] /= Md;
+    coeff_il[1] /= Md;
     for (uint32_t k = 1; k < M; k++) {
-        coeff_il[2u * k] *= 2.0 * inv;
-        coeff_il[2u * k + 1u] *= 2.0 * inv;
+        coeff_il[2u * k] = coeff_il[2u * k] * 2.0 / Md;
+        coeff_il[2u * k + 1u] = coeff_il[2u * k + 1u] * 2.0 / Md;
     }
 }
 

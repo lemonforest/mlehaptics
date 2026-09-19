@@ -40,6 +40,8 @@
 #include <string.h>
 
 #include "srmech.h"
+#include "srmech_sqrt_internal.h"   /* rc477 (`#T1188`): srmech_inv_sqrt, the
+                                     * one-rounding absorber rc476 shipped */
 
 /* ------------------------------------------------------------------
  * Bump arena — forward-only carve, void*-aligned.
@@ -2382,29 +2384,18 @@ static srmech_status_t cr_op_as_oct8(cr_ctx_t *c, const srmech_json_value_t *a,
     return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
-/* 1/float(√x) via the SAME Q61 cascade srmech.math.rational.sqrt projects:
- * √x = root·2^p exactly (srmech_sqrt_q61), float() of that exact rational
- * (dyadic — correctly rounded), then one IEEE divide. 0 -> decline. */
-static int cr_inv_sqrt(cr_bump_t *b, double x, double *out)
-{
-    int64_t root = 0, p = 0; srmech_bigint_t *num, *den; double f = 0.0;
-    assert(b != NULL);
-    assert(out != NULL);
-    if (srmech_sqrt_q61(x, &root, &p) != SRMECH_OK || root <= 0) { return 0; }
-    if (p >= 0) {
-        if (p > 2048) { return 0; }
-        num = cr_bi_u64_shl(b, (uint64_t)root, (uint32_t)p);
-        den = cr_bi_u64_shl(b, 1u, 0u);
-    } else {
-        if (p < -2048) { return 0; }
-        num = cr_bi_u64_shl(b, (uint64_t)root, 0u);
-        den = cr_bi_u64_shl(b, 1u, (uint32_t)(-p));
-    }
-    if (num == NULL || den == NULL) { return 0; }
-    if (!cr_q_dyadic_dbl(num, den, &f) || f == 0.0) { return 0; }
-    *out = 1.0 / f;
-    return 1;
-}
+/* (0.9.0rc477, `#T1188`: `cr_inv_sqrt` stood here — "√x = root·2^p exactly,
+ * float() of that exact rational, then ONE IEEE divide". The last clause was
+ * the defect: that is TWO roundings, and the second is not repaired by fixing
+ * the first. Measured with an exact integer oracle, `1.0/float(sqrt(k))` misses
+ * the correctly rounded 1/√k on 101 of the 399 integers k in 2..400 while the
+ * one-rounding route misses 0, and at k = 3 the two spellings return different
+ * bit patterns. rc476 ALREADY shipped the absorber — `srmech_inv_sqrt` in the
+ * private srmech_sqrt_internal.h, the reciprocal folded into the radicand so
+ * the projection rounds once — and left this helper as its duplicate. It is
+ * DELETED rather than repaired: one op serves all callers, and a
+ * generalisation absorbs and removes. It was `static`, so no exported symbol
+ * moves: nm -D --defined-only counted 0 `cr_inv_sqrt`, nm counted 1 local.) */
 
 /* qdft_resolve_mu(mu_axis): the NAMED unit axes ('i'/'j'/'k'/'ijk'; for ℍ
  * 'diagonal' IS 'ijk'). A general vector axis declines to pure (its
@@ -2421,7 +2412,7 @@ static srmech_status_t cr_op_qdft_resolve_mu(cr_ctx_t *c, const srmech_json_valu
     else if (cr_str_is(ax, "j")) { mu[2] = 1.0; }
     else if (cr_str_is(ax, "k")) { mu[3] = 1.0; }
     else if (cr_str_is(ax, "ijk") || cr_str_is(ax, "diagonal")) {
-        if (!cr_inv_sqrt(c->b, 3.0, &s3)) { return SRMECH_ERR_NOT_IMPL; }
+        if (srmech_inv_sqrt(3.0, &s3) != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
         mu[1] = s3; mu[2] = s3; mu[3] = s3;
     }
     else { return SRMECH_ERR_NOT_IMPL; }         /* unknown -> pure raises */
@@ -2447,11 +2438,11 @@ static srmech_status_t cr_op_odft_resolve_mu(cr_ctx_t *c, const srmech_json_valu
     else if (cr_str_is(ax, "e6")) { mu[6] = 1.0; }
     else if (cr_str_is(ax, "e7")) { mu[7] = 1.0; }
     else if (cr_str_is(ax, "ijk")) {
-        if (!cr_inv_sqrt(c->b, 3.0, &s)) { return SRMECH_ERR_NOT_IMPL; }
+        if (srmech_inv_sqrt(3.0, &s) != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
         mu[1] = s; mu[2] = s; mu[3] = s;
     }
     else if (cr_str_is(ax, "diagonal")) {
-        if (!cr_inv_sqrt(c->b, 7.0, &s)) { return SRMECH_ERR_NOT_IMPL; }
+        if (srmech_inv_sqrt(7.0, &s) != SRMECH_OK) { return SRMECH_ERR_NOT_IMPL; }
         for (i = 1u; i < 8u; i++) { mu[i] = s; }
     }
     else { return SRMECH_ERR_NOT_IMPL; }
@@ -2472,18 +2463,66 @@ static srmech_status_t cr_op_dft_sigma(cr_ctx_t *c, const srmech_json_value_t *a
     return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
-/* dft_scale(inverse, n): 1/n on the inverse (n > 0), else 1.0. */
+/* A CR_RATIONAL carrying num/den from two int64s, or NULL on an arena
+ * failure -- the constructor shape cr_int_i64 / cr_dbl / cr_rat_signed already
+ * use, so a caller spells the arena refusal ONCE at its terminal return.
+ *
+ * rc477 (`#T1188`): written as a constructor rather than inline in
+ * cr_op_dft_scale for a measured reason. The inline form needed THREE bare
+ * `return SRMECH_ERR_OVERFLOW;` lines, and tests/test_status_conflation_ratchet_
+ * rc404.py counts those against a down-only ceiling: 754 -> 758, red. That
+ * ratchet offers an explicit raise with a written adjudication as the
+ * sanctioned move, and this is the better one -- the lines are not added at
+ * all, and the op reads like every other value-building arm in this file. */
+static cr_value_t *cr_rat_i64(cr_bump_t *b, int64_t num, int64_t den)
+{
+    cr_value_t *ov;
+    assert(b != NULL);
+    assert(den != 0);
+    ov = cr_new_value(b, CR_RATIONAL);
+    if (ov == NULL) { return NULL; }
+    ov->num = cr_new_bigint(b, 3u);
+    ov->den = cr_new_bigint(b, 3u);
+    if (ov->num == NULL || ov->den == NULL) { return NULL; }
+    if (srmech_bigint_set_i64(ov->num, num) != SRMECH_OK ||
+        srmech_bigint_set_i64(ov->den, den) != SRMECH_OK) {
+        return NULL;
+    }
+    return ov;
+}
+
+/* dft_scale(inverse, n): the EXACT Q(1, n) on the inverse (n > 0), else
+ * Q(1, 1) — a CR_RATIONAL, which has been on this wire since v21.
+ *
+ * rc477 (`#T1188`). It emitted `cr_dbl(1.0/(double)n)`. The reciprocal was not
+ * the defect — `1.0/n` IS correctly rounded, 0 of the 4999 n in 2..5000 miss it
+ * — the MULTIPLY downstream was: x*(1.0/n) misses CR(x/n) on 5354 of 20000
+ * seeded x. An exact scale cannot be multiplied wrongly, so it is not rounded
+ * at all here and the float boundary moves to whoever serves the value.
+ *
+ * The 2^53 ceiling goes with the double: an exact rational has no such
+ * horizon, and the Python peer never had one, so keeping it would be the two
+ * projections disagreeing on what they refuse.
+ *
+ * ⚠️ WHAT THIS DOES TO A CHAIN, CORRECTED. A draft of this comment said the
+ * downstream `vec_scale` step would now DECLINE -- `cr_arg_dbl` reads only
+ * CR_DBL and CR_INT -- and called that deliberate. It was not acceptable, and
+ * CI said so before the claim could ship: `test_srmech_cascade_toml_host` went
+ * from 25 passed to 23 passed / 2 failed with rc 5, because the quaternion_dft
+ * and octonion_dft chains stopped running in C at all. A capability regression
+ * is not a refusal. `cr_op_vec_scale` has the RATIONAL arm now, and it is one
+ * correctly rounded division that matches the Python peer by construction. */
 static srmech_status_t cr_op_dft_scale(cr_ctx_t *c, const srmech_json_value_t *a,
                                        cr_value_t **o)
 {
-    cr_value_t *inv, *nv; int64_t v = 0, n = 0;
+    cr_value_t *inv, *nv; int64_t v = 0, n = 0, den;
     assert(c != NULL && a != NULL);
     assert(o != NULL);
     inv = cr_arg(c, a, "inverse"); nv = cr_arg(c, a, "n");
     if (inv == NULL || nv == NULL) { return SRMECH_ERR_NOT_IMPL; }
     if (!cr_as_i64(inv, &v) || !cr_as_i64(nv, &n)) { return SRMECH_ERR_NOT_IMPL; }
-    if (n > (INT64_C(1) << 53)) { return SRMECH_ERR_NOT_IMPL; }
-    *o = cr_dbl(c->b, (v != 0 && n > 0) ? (1.0 / (double)n) : 1.0);
+    den = (v != 0 && n > 0) ? n : 1;
+    *o = cr_rat_i64(c->b, 1, den);
     return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }
 
@@ -2639,19 +2678,66 @@ static srmech_status_t cr_op_seq_get(cr_ctx_t *c, const srmech_json_value_t *a,
 }
 
 /* vec_scale(v, s): elementwise v[i] * s (the DFT output scale). */
+/* A non-negative bigint as uint64, or 0 on refusal (> 2 limbs / negative).
+ * rc477 (`#T1188`): the reciprocal DENOMINATOR reader for cr_op_vec_scale's
+ * rational arm below -- narrow on purpose, because a denominator that does not
+ * fit is a capability the arm declines rather than a value it approximates. */
+static int cr_bi_u64(const srmech_bigint_t *bi, uint64_t *out)
+{
+    assert(bi != NULL);
+    assert(out != NULL);
+    if (bi->sign < 0) { return 0; }
+    if (bi->sign == 0) { *out = 0u; return 1; }
+    if (bi->n > 2u) { return 0; }
+    *out = (uint64_t)bi->limbs[0];
+    if (bi->n == 2u) { *out |= ((uint64_t)bi->limbs[1]) << 32; }
+    return 1;
+}
+
+/* vec_scale(v, s): elementwise v * s.
+ *
+ * rc477 (`#T1188`) adds the RATIONAL arm, and it is not optional. dft_scale
+ * emits the exact CR_RATIONAL Q(1, n) since this release, and `cr_arg_dbl`
+ * reads only CR_DBL and CR_INT -- so without this arm the two shipped declared
+ * DFT chains stopped running in C entirely (measured:
+ * `test_srmech_cascade_toml_host` went from 25 passed to 23 passed / 2 failed
+ * with rc 5, on the quaternion_dft and octonion_dft `single` / `quat_embed`
+ * cases). Declining there would have been a capability regression dressed as a
+ * refusal.
+ *
+ * ONE ROUNDING, and it matches the Python peer by construction. `s` is `1/den`
+ * with den an integer, so the element is `dv[i] / (double)den` -- a single
+ * correctly rounded IEEE division, which is exactly what
+ * `float(Q.from_float(dv[i]) * Q(1, den))` computes. A numerator other than 1,
+ * or a denominator past uint64, DECLINES: those would need an exact
+ * rational->double the chain wire does not carry, and a narrower projection
+ * must REFUSE rather than silently answer, or the two projections disagree on
+ * a VALUE instead of on a capability. */
 static srmech_status_t cr_op_vec_scale(cr_ctx_t *c, const srmech_json_value_t *a,
                                        cr_value_t **o)
 {
-    cr_value_t *v; double s = 0.0, *dv, *r; size_t n = 0u, i;
+    cr_value_t *v, *sv; double s = 0.0, *dv, *r; size_t n = 0u, i;
+    const srmech_bigint_t *sn, *sd; uint64_t den = 0u, num = 0u; int rational = 0;
     assert(c != NULL && a != NULL);
     assert(o != NULL);
     v = cr_arg(c, a, "v");
-    if (v == NULL || !cr_arg_dbl(c, a, "s", &s)) { return SRMECH_ERR_NOT_IMPL; }
+    sv = cr_arg(c, a, "s");
+    if (v == NULL || sv == NULL) { return SRMECH_ERR_NOT_IMPL; }
+    if (!cr_arg_dbl(c, a, "s", &s)) {
+        if (!cr_as_rational(sv, &sn, &sd)) { return SRMECH_ERR_NOT_IMPL; }
+        if (!cr_bi_u64(sn, &num) || !cr_bi_u64(sd, &den)) {
+            return SRMECH_ERR_NOT_IMPL;
+        }
+        if (num != 1u || den == 0u) { return SRMECH_ERR_NOT_IMPL; }
+        rational = 1;
+    }
     dv = cr_as_dvec(c->b, v, &n);
     if (dv == NULL) { return SRMECH_ERR_NOT_IMPL; }
     r = (double *)cr_carve(c->b, n * sizeof(double) + sizeof(double));
     if (r == NULL) { return SRMECH_ERR_OVERFLOW; }
-    for (i = 0u; i < n; i++) { r[i] = dv[i] * s; }
+    for (i = 0u; i < n; i++) {
+        r[i] = (rational != 0) ? (dv[i] / (double)den) : (dv[i] * s);
+    }
     *o = cr_dvec_value(c->b, r, n);
     return (*o == NULL) ? SRMECH_ERR_OVERFLOW : SRMECH_OK;
 }

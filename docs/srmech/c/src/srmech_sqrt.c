@@ -232,6 +232,32 @@ srmech_status_t srmech_sqrt_scaled(uint64_t num, uint64_t den, int32_t e0,
     return SRMECH_OK;
 }
 
+/* The SAME projection, over a (root, p) pair a caller produced itself.
+ *
+ * rc477 (`#T1188`). srmech_axis_unit normalises an arbitrary double axis
+ * EXACTLY, which needs a bignum radicand and therefore cannot go through
+ * srmech_sqrt_core's uint64 num/den wire. What it must NOT do is re-derive the
+ * 53-bit rounding: this header's own sentence is that "a rounding rule written
+ * twice is a rounding rule that will disagree once". So the bignum side hands
+ * back the core's OWN output shape -- the odd sticky root and its exponent --
+ * and the projection stays here, in one place, byte-identical for both callers.
+ *
+ * `root` must satisfy the core's post-condition (>= 2^53, 54..57 bits), which
+ * is what srmech_sqrt_project asserts; a caller that cannot meet it is REFUSED
+ * rather than served, because the assert is a contract and not a hope. */
+srmech_status_t srmech_sqrt_project_root(uint64_t root, int32_t p, double *out)
+{
+    unsigned bl;
+    assert(out != NULL);
+    assert(sizeof(root) == 8u);
+    if (out == NULL) { return SRMECH_ERR_NULL_ARG; }
+    if (root < (UINT64_C(1) << 53)) { *out = 0.0; return SRMECH_ERR_BAD_INPUT; }
+    bl = srmech_bitlen64(root);
+    if (bl < 54u || bl > 57u) { *out = 0.0; return SRMECH_ERR_BAD_INPUT; }
+    *out = srmech_sqrt_project(root, p);
+    return SRMECH_OK;
+}
+
 /* 1/sqrt(x) for a POSITIVE FINITE double, correctly rounded, in one step.
  *
  * rc476 (`#T1188`). The normalised-Laplacian consumers spelled this

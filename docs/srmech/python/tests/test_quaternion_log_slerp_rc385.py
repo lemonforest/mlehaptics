@@ -174,6 +174,72 @@ def test_slerp_pure_equals_c_dispatched(q, t):
         f"{pure} vs {native}")
 
 
+#: A NON-IDENTITY start, so ``conj(q0)*q1`` is a general rotation rather than
+#: ``q1`` itself (rc477, `#T1188`). The bank above pins ``q0 = _ID``, which
+#: makes the tangent ``t*log(q1)`` -- already a general pure-imaginary vector,
+#: which is why those 49 rows DO exercise ``srmech_quat__exp_pure`` -- but it
+#: never exercises the left-multiply by a non-unit-real ``q0`` on the way back.
+_Q0_BANK = [
+    _unit([0.3, -0.4, 0.5, 0.7]),        # generic, w > 0
+    _unit([-0.9, 0.1, 0.2, -0.3]),       # w < 0 on the START quaternion
+    _unit([0.0, 0.0, 1.0, 0.0]),         # a pure-imaginary start
+]
+
+
+@pytest.mark.skipif(not _native.HAS_NATIVE,
+                    reason="byte-identity oracle needs the built native lib")
+@pytest.mark.parametrize("q0", _Q0_BANK)
+@pytest.mark.parametrize("q1", _BANK)
+@pytest.mark.parametrize("t", _T)
+def test_slerp_pure_equals_c_dispatched_from_a_nonidentity_start(q0, q1, t):
+    """The WIDENING rc477 (`#T1188`) owed, and it is a widening because the row
+    above already existed.
+
+    rc477 replaced ``srmech_quat__exp_pure``'s float pre-normalisation
+    (``1.0 / tnorm`` then a multiply -- three roundings) with the EXACT
+    per-component route the Python ``_resolve_mu4`` takes, so the two
+    projections agree by construction rather than by matching float-op order.
+    The two disagree on **2441 of 5000** seeded pure-imaginary vectors (3054 of
+    15000 components) if only one of them moves, so byte-identity here is the
+    detector for getting that edit wrong.
+
+    ⚠️ It is NOT done by passing ``tw`` unnormalised to
+    ``srmech_quaternion_exp``: that symbol does not normalise, measured through
+    its own export -- ``exp(0.7, [0,1,1,1])`` returns a quaternion of squared
+    norm 1.830032857099759 -- and its caller-normalises-mu contract is
+    unchanged by that release.
+    """
+    pure = _pure(quaternion_slerp, q0, q1, t)
+    native = quaternion_slerp(q0, q1, t)
+    assert all(_bits(pure[i]) == _bits(native[i]) for i in range(4)), (
+        f"quaternion_slerp pure vs C diverged for q0={q0}, q1={q1}, t={t}: "
+        f"{pure} vs {native}")
+
+
+@pytest.mark.skipif(not _native.HAS_NATIVE,
+                    reason="byte-identity oracle needs the built native lib")
+@pytest.mark.parametrize("t", _T)
+def test_slerp_the_antipodal_and_zero_tangent_pin_slots(t):
+    """The two degenerate arms the bank above cannot reach (rc477, `#T1188`).
+
+    ``q1 = q0`` and ``q1 = -q0`` both make ``conj(q0)*q1`` PURE REAL, so
+    ``log`` is zero and ``srmech_quat__exp_pure`` takes its ``tn_sq == 0``
+    pin-slot and returns the identity WITHOUT calling the axis normaliser at
+    all. That branch is the one an edit to the normalisation can silently
+    break -- by reaching the normaliser with a zero vector, which refuses -- so
+    it is asserted on both projections and against the closed form.
+    """
+    q0 = _unit([0.3, -0.4, 0.5, 0.7])
+    for q1, expect in ((list(q0), q0), ([-v for v in q0], q0)):
+        pure = _pure(quaternion_slerp, q0, q1, t)
+        native = quaternion_slerp(q0, q1, t)
+        assert all(_bits(pure[i]) == _bits(native[i]) for i in range(4)), (
+            f"the pin-slot arm diverged for q1={q1}, t={t}: {pure} vs {native}")
+        assert all(_bits(native[i]) == _bits(expect[i]) for i in range(4)), (
+            f"a zero tangent must return q0 unchanged; got {native} for "
+            f"q1={q1}, t={t}")
+
+
 # ── 6. registration ratchet + source discipline ───────────────────────────
 def test_both_ops_in_all_and_describe_total_is_pinned():
     # NAME CARRIES NO NUMBER ON PURPOSE. This pin tracks a value that MOVES;

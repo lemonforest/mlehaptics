@@ -1187,17 +1187,29 @@ def test_compose_host_float_only_members_are_real_chain_steps() -> None:
 
 # ── the declared DFT chains in the PYTHON runner over an exact sample list ───
 def test_the_declared_qdft_chain_in_the_python_runner_over_an_exact_sample() -> None:
+    from srmech.cascade.hypercomplex_dft import dft_scale   # rc477 (`#T1188`)
     """The chain steps carry an exact sample exactly, so the declared
     ``quaternion_dft`` chain run by the PYTHON runner over an exact sample list
     is exact on the DC bin (its twiddle is the unit on the nose) and STAYS
-    exact through ``vec_scale`` whenever ``dft_scale``'s float ``1/n`` is a
-    dyadic — ``Q`` absorbs ``1.0`` and ``2**-k`` exactly. ``dft_scale`` has NO
-    operand whose leaves could elect a carrier (a bool and an int), so an
-    inverse over a non-dyadic ``n`` multiplies the exact accumulator by the
-    float64-rounded ``1/n``: a ``Q`` of a rounded scale, the one mixed-carrier
-    residue of this drain, DECLARED on ``dft_scale`` and pinned here so that a
-    chain-level exact scale is GOOD NEWS the gate reports, never absorbed."""
+    exact through ``vec_scale`` — on EVERY ``n``, not only a dyadic one.
+
+    ✅ **rc477 (`#T1188`): THE GOOD NEWS LANDED, and this is the exact equality
+    it asked for.** Through rc476 this test asserted ``out[0][0] != Q(P+3, 3)``
+    with a message reading *"the declared chain now carries an exact 1/3
+    through dft_scale — GOOD NEWS, ACTION REQUIRED: retire the mixed-carrier
+    declaration on dft_scale and turn this assertion into the exact equality"*.
+    ``dft_scale`` returns the exact ``Q(1, n)`` now, so the inequality has been
+    replaced by the equality and the mixed-carrier declaration is retired from
+    that op's docstring in the same commit.
+
+    What the residue actually was is worth keeping, because the op's own prose
+    named the wrong half: it called the float route *"accurate to round-off
+    (~1 ULP), a Q of a float64-rounded 1/n"*, and ``1.0 / float(n)`` IS
+    correctly rounded — 0 of the 4999 integers ``n`` in 2..5000 miss it. The
+    cost was the SECOND rounding, at the multiply, which an exact scale cannot
+    incur at all."""
     import test_c_cascade_value_parity_rc450 as harness
+    from srmech.cascade.hypercomplex_dft import dft_scale   # rc477 (`#T1188`)
     from srmech.dsl._cascade_chain import cascade_chain_specs
     _variant, spec, entry = cascade_chain_specs("quaternion_dft")[0]
     fwd = dict(harness._case_defaults(entry))
@@ -1211,11 +1223,18 @@ def test_the_declared_qdft_chain_in_the_python_runner_over_an_exact_sample() -> 
     assert isinstance(out[0][0], Q) and out[0][0] == Q(P + 1, 2), out[0]
     inv3 = dict(fwd)
     inv3.update({"x": [[P, 0, 0, 0], [1, 0, 0, 0], [2, 0, 0, 0]], "inverse": True})
-    out = harness._py_run(spec, inv3)                                 # n = 3: 1/3 is not
+    out = harness._py_run(spec, inv3)                    # n = 3: not a dyadic
     assert isinstance(out[0][0], Q), out[0]
-    assert out[0][0] != Q(P + 3, 3), (
-        "the declared chain now carries an exact 1/3 through dft_scale — GOOD "
-        "NEWS, ACTION REQUIRED: retire the mixed-carrier declaration on "
-        "dft_scale and turn this assertion into the exact equality")
-    # the ONLY difference is the scale: the float 1/3, read exactly, recovers the sum
-    assert out[0][0] == Q(P + 3) * Q(*(1.0 / 3.0).as_integer_ratio())
+    assert out[0][0] == Q(P + 3, 3), (
+        "the declared chain no longer carries the EXACT 1/3 through dft_scale "
+        f"— got {out[0][0]!r}, wanted {Q(P + 3, 3)!r}. dft_scale returns "
+        "Q(1, n) since rc477 (`#T1188`); a float scale here would be the "
+        "mixed-carrier residue coming back")
+    # ...and it is NOT the old value: the float 1/3 read exactly is a different
+    # rational, so this is a measurement and not a tautology.
+    assert out[0][0] != Q(P + 3) * Q(*(1.0 / 3.0).as_integer_ratio()), (
+        "the chain is carrying the float64 1/3 read exactly, which is what the "
+        "rc466 residue was — the exact Q(1, 3) is a DIFFERENT rational")
+    assert dft_scale(True, 3) == Q(1, 3) and dft_scale(True, 0) == Q(1, 1), (
+        "dft_scale must be exact and total on n >= 0, with n == 0 giving "
+        "Q(1, 1) and never Q(1, 0)")

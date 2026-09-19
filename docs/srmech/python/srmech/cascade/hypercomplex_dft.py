@@ -87,7 +87,6 @@ from srmech.math.q import Q as _Q
 from srmech.math.rational import cos as _rcos
 from srmech.math.rational import pi_cascade_digits as _pi_cascade_digits
 from srmech.math.rational import sin as _rsin
-from srmech.math.rational import sqrt as _rsqrt
 
 # 0.9.0rc10 (F882, srmech #205) — the LITERAL exp(μθ) twiddle in EXACT Q61.
 _Q61_ONE = _rational._Q61_ONE                          # 1.0 in Q61 (= 2**61)
@@ -111,15 +110,28 @@ _PI = int(_PI_IP + _PI_FP) / (10 ** len(_PI_FP))
 # Unit pure-imaginary quaternion axes (μ² = −1). The twiddle lives in the
 # commutative subalgebra ℝ[μ] ≅ ℂ, which is WHY the one-sided transform is
 # invertible: Σ_k exp(μ·2πk(n−n')/N) = N·δ_{n,n'} (geometric series in ℝ[μ]).
+#
+# ⚠️ rc477 (`#T1188`): the table holds INTEGER DIRECTIONS, not float components.
+# Through rc476 ``'ijk'`` was stored as the float triple ``(0.0, _S3, _S3, _S3)``
+# with ``_S3 = 1.0 / float(_rsqrt(3.0))`` — a floored root, a reciprocal and a
+# multiply, three roundings for a value the file's own prose called one. The
+# stored constant landed **179 Q61 words** above the nearest word, a norm
+# residue of **+619.62 grid units**, and the served double was
+# ``0.5773502691896258`` where the correctly rounded ``1/√3`` is
+# ``0.5773502691896257``. A NAMED AXIS IS A LABEL AND HAS NO CARRIER: the
+# direction is integers and the ``1/√k`` belongs inside the radicand, which is
+# what :func:`srmech.math.qalg._axis_float` and ``_axis_q61`` do. The float
+# table is DERIVED now, never stored. ``_exact_couple_axis`` already read this
+# table as an integer direction through a Class-K sign pin — it is the reading
+# that is promoted here, not a new one.
 _MU_AXES = {
-    "i": (0.0, 1.0, 0.0, 0.0),
-    "j": (0.0, 0.0, 1.0, 0.0),
-    "k": (0.0, 0.0, 0.0, 1.0),
+    "i": (0, 1, 0, 0),
+    "j": (0, 0, 1, 0),
+    "k": (0, 0, 0, 1),
+    # The body-diagonal direction (i+j+k) — the order-3 (triality-adjacent)
+    # pure-quaternion axis; its unit is (i+j+k)/√3 and still μ²=−1.
+    "ijk": (0, 1, 1, 1),
 }
-# The body-diagonal unit axis (i+j+k)/√3 — the order-3 (triality-adjacent)
-# pure-quaternion direction; still μ²=−1.
-_S3 = 1.0 / float(_rsqrt(3.0))
-_MU_AXES["ijk"] = (0.0, _S3, _S3, _S3)
 
 _FORMS = ("left", "right")
 _OCTONION_FORMS = ("left", "right", "two_sided")
@@ -838,18 +850,46 @@ def _resolve_mu(mu_axis, *, octonion) -> List[float]:
       transform, ``e4..e7``) must be zero.
 
     rc125: a plain ``list[float]``.
-    """
+
+    ⚠️ rc477 (`#T1188`): this is now the FLOAT PROJECTION of
+    :func:`_mu_direction`, and each component is the **correctly rounded
+    double** of ``sign(wᵢ)·√(wᵢ²/S)``. Through rc476 it divided by a projected
+    root — ``inv = 1.0 / float(_rsqrt(…))`` then a multiply — which rounds
+    three times where the sentence above claims one, misses the correctly
+    rounded double on 101 of the 399 integers in 2..400, and loses an EXACTLY
+    representable unit: ``[0,3,4,0]`` was served ``0.6000000000000001`` and is
+    served ``0.6`` now."""
+    return _mu_float(*_mu_direction(mu_axis, octonion=octonion))
+
+
+def _mu_direction(mu_axis, *, octonion):
+    """``(w, S)`` — the axis as an INTEGER direction and ``S = Σwᵢ²``, the ONE
+    reader both the float and the Q61 projection are taken over (rc477,
+    `#T1188`).
+
+    A NAMED axis is a LABEL: ``'ijk'`` is ``(0,1,1,1)`` at ``S = 3``,
+    ``'diagonal'`` is ``(0,1,1,1,0,0,0,0)`` at ``S = 3`` on a quaternion
+    carrier and ``(0,1,…,1)`` at ``S = 7`` on an octonion one, ``'i'/'j'/'k'``
+    are the signed unit directions at ``S = 1``. A general vector is read
+    EXACTLY by :func:`_exact_mu_q` — the wire reader this module already ships
+    — and put over a common denominator by
+    :func:`srmech.math.qalg._integer_direction`, which cancels.
+
+    Every refusal is the one :func:`_resolve_mu` has always raised, in the same
+    order and with the same text: the vocabulary, the ``e0 == 0`` pin, the
+    ℍ-scope pin, and the zero axis."""
+    hi = 8 if octonion else 4
     if isinstance(mu_axis, str):
         if mu_axis in _MU_AXES:
-            return _as8(_MU_AXES[mu_axis])
-        if mu_axis == "diagonal":
-            hi = 8 if octonion else 4
-            inv = 1.0 / float(_rsqrt(float(hi - 1)))
-            return [0.0] + [inv if 1 <= i < hi else 0.0 for i in range(1, 8)]
-        raise ValueError(
-            f"mu_axis must be one of {sorted(_MU_AXES) + ['diagonal']}, or a unit "
-            f"pure-imaginary vector; got {mu_axis!r}"
-        )
+            raw = list(_MU_AXES[mu_axis]) + [0, 0, 0, 0]
+        elif mu_axis == "diagonal":
+            raw = [0] + [1 if 1 <= i < hi else 0 for i in range(1, 8)]
+        else:
+            raise ValueError(
+                f"mu_axis must be one of {sorted(_MU_AXES) + ['diagonal']}, or a unit "
+                f"pure-imaginary vector; got {mu_axis!r}"
+            )
+        return _qalg._integer_direction([Q(c, 1) for c in raw])
     # General axis: a 4- or 8-component pure-imaginary vector.
     v = _as8(mu_axis)
     if v[0] != 0.0:
@@ -859,11 +899,28 @@ def _resolve_mu(mu_axis, *, octonion) -> List[float]:
             "a quaternion mu_axis must lie in ℍ (components e4..e7 == 0); use "
             "octonion_dft / a quaternion-scope coupler for an octonion axis"
         )
-    norm = float(_rsqrt(float(sum(c * c for c in v[1:]))))
-    if norm == 0.0:
+    w, s = _qalg._integer_direction(_exact_mu_q(v))
+    if s == 0:
         raise ValueError("mu_axis must be a non-zero pure-imaginary vector")
-    inv = 1.0 / norm
-    return [x * inv for x in v]
+    return w, s
+
+
+def _mu_float(w, S) -> List[float]:
+    """The FLOAT projection of a ``(w, S)`` direction — each component the
+    correctly rounded double of ``sign(wᵢ)·√(wᵢ²/S)`` (rc477, `#T1188`)."""
+    return _qalg._axis_float(w, S)
+
+
+def _mu_q61(w, S) -> List[int]:
+    """The Q61 projection of a ``(w, S)`` direction — each component the
+    NEAREST Q61 word, decided in integers (rc477, `#T1188`).
+
+    This is the projection the coupler's fixed-point arm takes, and it never
+    builds the float one: through rc476 the words came from ``_to_q61`` of an
+    already-thrice-rounded double and sat **179** (``S = 3``) and **−68**
+    (``S = 7``) words off nearest, a norm residue of **+619.62** / **−361.50**
+    grid units against **−0.45** / **−1.68** now."""
+    return _qalg._axis_q61(w, S)
 
 
 def _pack_streams_exact(streams):
@@ -1019,7 +1076,11 @@ def _odft_composed(xs: List[List[float]], form: str, bracketing: str,
                                 sigma, mu_hat, mu_r_hat)
             for i in range(_ODIM):
                 acc[i] += term[i]
-        out.append([acc[i] * scale for i in range(_ODIM)])
+        # rc477 (`#T1188`): `scale` is the EXACT Q(1, n), so the multiply
+        # carries no rounding and `float()` projects ONCE, at the wrapper's
+        # own exit -- each served element is the correctly rounded acc/n.
+        # The C peer divides by n_points there, one rounding, same value.
+        out.append([float(acc[i] * scale) for i in range(_ODIM)])
     return out
 
 
@@ -1108,7 +1169,9 @@ def qdft_resolve_mu(mu_axis) -> List[float]:
     if isinstance(mu_axis, str):
         name = "ijk" if mu_axis == "diagonal" else mu_axis
         if name in _quat._MU_AXES:
-            return list(_quat._MU_AXES[name])
+            # rc477 (`#T1188`): the table is an INTEGER direction; the unit is
+            # PROJECTED here, correctly rounded, rather than stored pre-divided.
+            return _quat._resolve_mu4(name, "quaternion_dft")
         raise ValueError(
             f"mu_axis must be one of {sorted(_MU_AXES) + ['diagonal']}, or a "
             f"unit pure-imaginary vector; got {mu_axis!r}"
@@ -1163,38 +1226,40 @@ def dft_sigma(inverse: bool) -> int:
     return 1 if inverse else -1
 
 
-def dft_scale(inverse: bool, n: int) -> float:
-    """Class N: the hypercomplex-DFT output scale — ``1/n`` for the inverse
-    transform (``n > 0``), else ``1.0``.
+def dft_scale(inverse: bool, n: int) -> "Q":
+    """Class N: the hypercomplex-DFT output scale — the EXACT ``Q(1, n)`` for
+    the inverse transform (``n > 0``), else ``Q(1, 1)``.
 
     The ``scale = (1.0 / float(n_pts)) if inverse else 1.0`` line of both
     composed DFT paths, exiled to its own op instance. The ``n > 0`` guard
     mirrors the public wrappers' ``if not xs: return []`` early return
-    (wrapper-layer, not iteration-layer), so the op is total on ``n >= 0``.
+    (wrapper-layer, not iteration-layer), so the op is total on ``n >= 0`` —
+    and ``n == 0`` returns ``Q(1, 1)``, never ``Q(1, 0)``.
 
-    **Accuracy (rc466, `#T1188`) — the one step of the DFT chains with NO
-    operand to elect a carrier.** Its inputs are a ``bool`` and an ``int``, so
-    the rc466 rule "the leaves of the operand pick the rung" has nothing to
-    read here, and the return is the float64 ``1/n`` on every call. In the
-    declared ``quaternion_dft`` / ``octonion_dft`` chains run by the PYTHON
-    runner over an EXACT sample list, the summands and the ``vec_add`` fold
-    are exact ``Q``, and this scale is absorbed EXACTLY by ``Q`` for the
-    forward transform (``1.0``) and for every inverse whose ``n`` is a power
-    of two (``2**-k`` is a dyadic float): those chains stay exact end to end.
-    An inverse over any other ``n`` multiplies the exact accumulator by the
-    float64-rounded ``1/n`` — **accurate to round-off** (~1 ULP), a ``Q`` of a
-    rounded scale, the one mixed-carrier residue of the rc466 drain. ⚠️ Since
-    rc468 (`#T1188`) that residue's carrier can also be ``Qalg``: the summands
-    are exact on EVERY turn now, so a non-DC bin of an exact chain arrives as
-    a field element and the rounded scale multiplies THAT. The residue is the
-    same one and it moved no closer to the value — it is named here because
-    the sentence said ``Q`` and now would be false of half the bins. It is
-    pinned by name in ``tests/test_exact_carrier_drain_rc466.py`` so that a
-    chain-level exact scale (``Q(1, n)`` once the runner can declare a
-    per-step carrier) is reported as GOOD NEWS rather than absorbed. The
-    public wrappers never reach this case: they elect the float carrier at
-    their own entry."""
-    return (1.0 / float(n)) if (inverse and n > 0) else 1.0
+    **Accuracy (rc477, `#T1188`) — the scale is EXACT, and the rc466
+    mixed-carrier residue this op declared is DRAINED.** Through rc476 the
+    return was the float64 ``1/n`` on every call, and the op's own prose called
+    that *"accurate to round-off (~1 ULP), a ``Q`` of a float64-rounded
+    ``1/n``"*. **The ~1 ULP was in the wrong place.** ``1.0 / float(n)`` IS
+    correctly rounded — measured, 0 of the 4999 integers ``n`` in 2..5000 miss
+    it, and ``1.0 / n == float(Q(1, n))`` on all 4999. The defect was the
+    SECOND rounding, at the multiply: ``x * (1.0/n) != CR(x/n)`` on
+    **5354 of 20000** seeded ``x`` at ``n ∈ {3,5,6,7,9,10,12,100,1000,4097}``,
+    where ``float(Q(x) * Q(1, n))`` misses on **0 of 20000**. So the repair is
+    not a better reciprocal — it is not rounding at all until the value leaves.
+
+    The declared ``quaternion_dft`` / ``octonion_dft`` chains run by the PYTHON
+    runner over an EXACT sample list are now exact END TO END, on EVERY ``n``
+    and on every bin, ``Q`` or ``Qalg``: there is no longer a residue to
+    declare. ``tests/test_exact_carrier_drain_rc466.py`` pinned this as the
+    GOOD NEWS it reports rather than absorbs, and that pin is now the exact
+    equality.
+
+    The public float wrappers project **once, at their own exit** — the
+    multiply is exact and ``float()`` rounds it a single time, which is what
+    makes each served element the correctly rounded ``acc/n`` and keeps the
+    declared ``list[list[float]]`` return honest."""
+    return Q(1, n) if (inverse and n > 0) else Q(1, 1)
 
 
 def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
@@ -1487,7 +1552,11 @@ def _qdft_composed(xs: List[List[float]], left: bool, inverse: bool,
             term = qdft_summand(xs, k, m, n_pts, left, sigma, mu_hat)
             for i in range(_QDIM):
                 acc[i] += term[i]
-        out.append([acc[i] * scale for i in range(_QDIM)])
+        # rc477 (`#T1188`): `scale` is the EXACT Q(1, n), so the multiply
+        # carries no rounding and `float()` projects ONCE, at the wrapper's
+        # own exit -- each served element is the correctly rounded acc/n.
+        # The C peer divides by n_points there, one rounding, same value.
+        out.append([float(acc[i] * scale) for i in range(_QDIM)])
     return out
 
 
@@ -2285,9 +2354,12 @@ def hypercomplex_couple(
     exact = _pack_streams_exact(streams)
     if exact is not None:
         q_ex, octonion = exact
-        mu = _resolve_mu(axis, octonion=octonion)
+        # rc477 (`#T1188`): the NEAREST Q61 word per component, straight from
+        # the integer direction. The float axis is never built on this path —
+        # it was 179 words off nearest at S=3 and 68 at S=7, and _to_q61 could
+        # only quantise what the three float roundings had already lost.
+        mu_q61 = _mu_q61(*_mu_direction(axis, octonion=octonion))
         streams_q61 = [round(v * _Q61_ONE) for v in q_ex]
-        mu_q61 = [_to_q61(v) for v in mu]
         if theta is None:
             out_q61 = _couple_q61_turn(streams_q61, mu_q61,
                                        _signed_turn_k(k_turn, sigma, inverse),
@@ -2298,7 +2370,6 @@ def hypercomplex_couple(
         out_q = [Q(v, _Q61_ONE) for v in out_q61]
         return out_q if octonion else out_q[:4]
     q, octonion = _pack_streams(streams)
-    mu = _resolve_mu(axis, octonion=octonion)
     # rc16 (C-host parity): the float `Mat` octonion-matvec is replaced by the
     # EXACT-Q61 octonion couple (cd_basis_product structure constants + Q61
     # fxmul) — byte-exact reproducible in C, the stay-rational NORTH STAR with
@@ -2306,7 +2377,7 @@ def hypercomplex_couple(
     # the twiddle by how the phase ARRIVED: `srmech_hypercomplex_couple_q61`
     # for a float64 angle, `srmech_hypercomplex_couple_turn_q61` for the turn.
     streams_q61 = [_to_q61(v) for v in q]
-    mu_q61 = [_to_q61(v) for v in mu]
+    mu_q61 = _mu_q61(*_mu_direction(axis, octonion=octonion))   # rc477: nearest
     if theta is None:
         out_q61 = _couple_q61_turn(streams_q61, mu_q61,
                                    _signed_turn_k(k_turn, sigma, inverse),

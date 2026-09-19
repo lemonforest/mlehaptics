@@ -637,12 +637,12 @@ _AXIS_SCALE_INDEX = {1: 4, 3: 12, 7: 28}
 _QR7 = frozenset((1, 2, 4))
 
 
-def _isqrt(x: int):
-    """The exact integer square root of a non-negative ``int``, or ``None`` if
-    ``x`` is not a perfect square. Newton on ints — no ``math.isqrt`` (``math``
-    is a BANNED_ENGINE in this tree), no float, no ``abs``."""
-    if x < 0:
-        return None
+def _isqrt_floor(x: int) -> int:
+    """``floor(√x)`` for a non-negative ``int``. Newton on ints — no
+    ``math.isqrt`` (``math`` is a BANNED_ENGINE in this tree), no float, no
+    ``abs``. The ONE integer-root kernel this module has; :func:`_isqrt` is its
+    perfect-square projection and :func:`_axis_q61` its rounding one, so the
+    Newton loop is written once (rc477, `#T1188`)."""
     if x < 2:
         return x
     r = 1 << ((x.bit_length() + 1) // 2)             # a bound above the root
@@ -651,6 +651,16 @@ def _isqrt(x: int):
         if nxt >= r:
             break
         r = nxt
+    return r
+
+
+def _isqrt(x: int):
+    """The exact integer square root of a non-negative ``int``, or ``None`` if
+    ``x`` is not a perfect square. Newton on ints — no ``math.isqrt`` (``math``
+    is a BANNED_ENGINE in this tree), no float, no ``abs``."""
+    if x < 0:
+        return None
+    r = _isqrt_floor(x)
     return r if r * r == x else None
 
 
@@ -699,6 +709,105 @@ def _exact_axis(weights):
         inv_t = Q(t.denominator, t.numerator)
         return [w * inv_t for w in weights], k
     return None
+
+
+#: The Q61 fixed-point one, as the exponent the axis words are taken at. Kept
+#: here as a bit count rather than imported so this module stays free of
+#: :mod:`srmech.cascade`.
+_Q61_BITS = 61
+
+
+def _integer_direction(weights):
+    """``(w, S)`` — an exact rational direction read as an INTEGER direction
+    ``w`` and its squared length ``S = Σ wᵢ²`` (rc477, `#T1188`).
+
+    ``weights`` is a sequence of exact :class:`~srmech.math.q.Q`. Every
+    component is put over the common denominator ``lcm(dᵢ)`` (Class I
+    :func:`~srmech.math.cyclic.gcd`), which **cancels out of** ``wᵢ/√S`` — so
+    the pair is the direction alone, carrying no scale to round.
+
+    This is the reader the three float axis resolvers share. Before rc477 each
+    of them normalised in float — ``1.0 / float(sqrt(‖v‖²))`` then a multiply,
+    three roundings — and landed **179 Q61 words** above the nearest word on
+    the body diagonal and **68 below** on the octonion diagonal (measured; the
+    norm residue is ``+619.62`` and ``−361.50`` grid units). Reading the
+    direction as integers is what makes :func:`_axis_q61` and
+    :func:`_axis_float` decidable at all.
+
+    No ``abs()``: ``S`` is built from ``wᵢ * wᵢ``, which is sign-free by
+    construction rather than by a magnitude call."""
+    den = 1
+    pairs = []
+    for c in weights:
+        q = _to_q(c)
+        n, d = q.numerator, q.denominator
+        pairs.append((n, d))
+        den = den // _gcd(den, d) * d                      # lcm (Class I)
+    w = [n * (den // d) for n, d in pairs]
+    return w, sum(x * x for x in w)
+
+
+def _axis_q61(w, S):
+    """The NEAREST Q61 word of ``sign(wᵢ)·√(wᵢ²/S)``, per component — decided
+    entirely in integers (rc477, `#T1188`).
+
+    ``uᵢ`` is the integer nearest ``2⁶¹·√(wᵢ²/S)``, which is certified by
+
+    ::
+
+        (2uᵢ − 1)²·S  <  wᵢ²·2¹²⁴  <  (2uᵢ + 1)²·S
+
+    — the inequality ``tests/test_axis_words_are_nearest_rc477.py`` asserts,
+    with a can-fail control that must reject both neighbours. The sign is a
+    Class-K pin-slot read off ``wᵢ`` and re-applied as Class C; the magnitude
+    runs on ``wᵢ * wᵢ``. **Never ``abs()``.**
+
+    For ``w = (0,1,1,1)``, ``S = 3`` this returns exactly the in-file
+    ``_HC_INV_Q61[3]`` the coupler's exact Q61 arm has always used, and
+    likewise at ``S = 7`` — the shipped anchor is ABSORBED here rather than
+    duplicated, and a general direction gets the same treatment for free."""
+    if S <= 0:
+        raise ValueError("_axis_q61: S must be positive (a non-zero direction)")
+    out = []
+    for wi in w:
+        sign = 1 if wi > 0 else (-1 if wi < 0 else 0)       # Class K pin-slot
+        if sign == 0:
+            out.append(0)
+            continue
+        a = (wi * wi) << (2 * _Q61_BITS)
+        f = _isqrt_floor(a // S)
+        u = f + 1 if (2 * f + 1) ** 2 * S < (a << 2) else f   # round-half-up
+        out.append(sign * u)                                  # Class C reorient
+    return out
+
+
+def _axis_float(w, S):
+    """The CORRECTLY ROUNDED double of ``sign(wᵢ)·√(wᵢ²/S)``, per component
+    (rc477, `#T1188`).
+
+    The root is taken on the exact rational ``Q(wᵢ², S)`` by the Class-N
+    :func:`srmech.math.rational.sqrt` cascade and projected ONCE. The shipped
+    spelling it replaces — ``1.0 / float(sqrt(‖v‖²))`` then a multiply — misses
+    the correctly rounded double on **101 of the 399** integers ``k`` in
+    ``2..400`` where this one misses **0**; ``1/√3`` was served
+    ``0.5773502691896258`` for a correctly rounded ``0.5773502691896257``.
+
+    An exactly-representable unit survives as itself: ``(0,3,4,0)`` returns
+    ``0.6`` and ``0.8``, where the float detour served ``0.6000000000000001``.
+
+    Class K pin-slot on the sign, Class C to re-apply it. **Never ``abs()``.**"""
+    from . import rational as _rational                  # Class N (cycle-free)
+    if S <= 0:
+        raise ValueError("_axis_float: S must be positive (a non-zero direction)")
+    out = []
+    for wi in w:
+        sign = 1 if wi > 0 else (-1 if wi < 0 else 0)       # Class K pin-slot
+        if sign == 0:
+            out.append(0.0)
+            continue
+        mag = float(_rational.sqrt(Q(wi * wi, S)))
+        out.append(mag if sign > 0 else -mag)               # Class C reorient
+    return out
 
 
 def _turn_field_index(n: int, axis_k: int = 1) -> int:
