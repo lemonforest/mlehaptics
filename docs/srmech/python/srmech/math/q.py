@@ -92,6 +92,45 @@ __all__ = ["Q", "to_q"]
 # public surface, and an admission predicate has no ToolEntry to resolve to,
 # so they are deliberately kept out of it, exactly as ``matrix_cascades.
 # _exact_leaf`` and rc465's ``_exact_component`` were private.
+#
+# rc479 (`#T1188`) adds ``decimal_text_to_pair`` / ``parse_float_exact`` /
+# ``MAX_DEC_DIGITS`` — contract A's text reader — on the SAME footing and for
+# the same reason: the reader is the package-internal one both front doors
+# install as their ``parse_float=`` default, and the PUBLIC coercion route for
+# text is :func:`to_q`, which does have a ToolEntry-free home in ``__all__``
+# already. A public admission predicate with no ToolEntry reddens the rc416
+# registry-completeness gate, so these stay out of ``__all__`` by the same
+# ruling, not by oversight.
+
+
+#: ``+inf`` as a bare literal — no maths library needed for an IEEE constant.
+#: The peer of ``rational._FLOAT_INF``, spelled here because ``q`` cannot
+#: import a name ``rational`` does not export to it without a cycle.
+_FLOAT_INF: float = float("inf")
+
+#: The third outcome of :meth:`Q._cmp` (rc479, `#T1188`): the operands are
+#: UNORDERED, which is what a NaN is against every number. It is deliberately
+#: NOT ``None`` — ``None`` means "this type is not mine, return
+#: ``NotImplemented`` so Python can try the reflected op", and returning that
+#: for a NaN would make ``Q < nan`` raise ``TypeError`` where ``0.1 < nan`` is
+#: quietly ``False``. Two different answers need two different sentinels.
+_CMP_UNORDERED = object()
+
+
+def _complex_parts(value):
+    """A finite ``complex``'s real and imaginary parts as EXACT ``Q``, else
+    ``None`` (rc479, `#T1188`).
+
+    ``None`` for anything that is not a ``complex`` and for a ``complex`` with
+    a non-finite component — ``Q.from_float`` raises there, and a carrier that
+    cannot hold the value must decline rather than invent one.
+    """
+    if not isinstance(value, complex):
+        return None
+    try:
+        return (Q.from_float(value.real), Q.from_float(value.imag))
+    except (OverflowError, ValueError):
+        return None
 
 
 def _integer_exponent(exp):
@@ -344,11 +383,34 @@ class Q:
 
     # ── comparisons: exact, by integer cross-multiply (F868 mechanism #2) ───
     def _cmp(self, other):
-        """Sign of ``self - other`` as an int, or ``None`` if incomparable.
+        """Sign of ``self - other`` as an int, :data:`_CMP_UNORDERED` when
+        ``other`` is a NaN, or ``None`` if incomparable.
+
         Denominators are positive (reduced), so cross-multiply preserves the
-        inequality direction."""
+        inequality direction.
+
+        ⚠️ **rc479 (`#T1188`) — the NON-FINITE arm, and why it is here rather
+        than in a caller.** A ``Q`` is ALWAYS finite, so its order against
+        ``±inf`` is decided without any arithmetic: every ``Q`` is below ``+inf``
+        and above ``-inf``, and a NaN is unordered against it exactly as it is
+        against a float. Through rc478 all four of ``Q < inf`` / ``inf < Q`` /
+        ``Q < nan`` / ``nan < Q`` raised ``TypeError``, because
+        :func:`_as_pair` reads a non-finite float as ``None`` (``as_integer_ratio``
+        raises) and the dunder then returned ``NotImplemented`` in BOTH
+        directions. That is a carrier gap, not a caller's problem, and it is
+        the funnel that made ``rational._is_finite`` — a function annotated
+        ``x: float`` and reached with a ``Q`` the moment contract A landed —
+        break on its own argument.
+        """
         pair = _as_pair(other)
         if pair is None:
+            if isinstance(other, float):
+                if other != other:
+                    return _CMP_UNORDERED               # NaN
+                if other == _FLOAT_INF:
+                    return -1                           # every Q < +inf
+                if other == -_FLOAT_INF:
+                    return 1                            # every Q > -inf
             return None
         on, od = pair
         left = self._n * od
@@ -357,27 +419,88 @@ class Q:
 
     def __eq__(self, other) -> bool:
         c = self._cmp(other)
-        return NotImplemented if c is None else c == 0
+        if c is None:
+            return NotImplemented
+        return False if c is _CMP_UNORDERED else c == 0
 
     def __ne__(self, other) -> bool:
         c = self._cmp(other)
-        return NotImplemented if c is None else c != 0
+        if c is None:
+            return NotImplemented
+        return True if c is _CMP_UNORDERED else c != 0
 
     def __lt__(self, other) -> bool:
         c = self._cmp(other)
-        return NotImplemented if c is None else c < 0
+        if c is None:
+            return NotImplemented
+        return False if c is _CMP_UNORDERED else c < 0
 
     def __le__(self, other) -> bool:
         c = self._cmp(other)
-        return NotImplemented if c is None else c <= 0
+        if c is None:
+            return NotImplemented
+        return False if c is _CMP_UNORDERED else c <= 0
 
     def __gt__(self, other) -> bool:
         c = self._cmp(other)
-        return NotImplemented if c is None else c > 0
+        if c is None:
+            return NotImplemented
+        return False if c is _CMP_UNORDERED else c > 0
 
     def __ge__(self, other) -> bool:
         c = self._cmp(other)
-        return NotImplemented if c is None else c >= 0
+        if c is None:
+            return NotImplemented
+        return False if c is _CMP_UNORDERED else c >= 0
+
+    # ── ℚ ⊗ ℂ: the complex carrier the caller elected (rc479, `#T1188`) ─────
+    def _complex_op(self, other, kind: str, reflected: bool = False):
+        """``Q`` against a ``complex``: EXACT per component, ONE projection.
+
+        rc479 (`#T1188`) closes carrier gap C-2. Through rc478 ``Q * complex``,
+        ``complex * Q`` and ``complex / Q`` all raised ``TypeError``, because
+        :func:`_as_pair` reads a ``complex`` as ``None`` and both directions
+        then returned ``NotImplemented`` — while ``complex(Q(1, 10))`` has
+        always worked, so the carrier could be CONVERTED but not COMBINED.
+        Under contract A this stops being academic: a ``Q`` now reaches
+        ``srmech.physics.qm.single_particle.lattice_momentum`` and
+        ``potentials.harmonic_oscillator_hamiltonian``, whose operands are
+        complex.
+
+        **THE CARRIER IS THE OPERAND'S, NOT THE OP'S** (rc466). A ``complex``
+        is a continuous carrier the caller ELECTED, exactly as a ``float`` is,
+        so the result is a ``complex`` — but each component is formed EXACTLY
+        in ℚ and projected ONCE at the end, which is strictly better than
+        ``complex(float(q)) * other``: that rounds the operand first and the
+        product second. This is the ``vec_scale`` discipline (rc477) on the
+        complex rung.
+
+        A ``complex`` with a non-finite component has no exact ℚ form and
+        returns ``NotImplemented``, so it keeps raising ``TypeError`` exactly
+        as it does today — a non-finite is not a value this carrier can hold,
+        and inventing one would be the silent wrong answer the whole rc removes.
+        """
+        parts = _complex_parts(other)
+        if parts is None:
+            return NotImplemented
+        cr, ci = parts
+        if kind == "mul":
+            return complex(float(self * cr), float(self * ci))
+        if kind == "add":
+            return complex(float(self + cr), float(ci))
+        if kind == "sub":
+            if reflected:                       # other - self
+                return complex(float(cr - self), float(ci))
+            return complex(float(self - cr), float(-ci))
+        if kind == "div":
+            if reflected:                       # other / self
+                return complex(float(cr / self), float(ci / self))
+            den = cr * cr + ci * ci             # exact |other|²
+            if den == 0:
+                raise ZeroDivisionError("complex division by zero")
+            return complex(float((self * cr) / den),
+                           float((-(self * ci)) / den))
+        return NotImplemented               # pragma: no cover — no other kind
 
     # ── exact arithmetic via Class-N rational primitives ────────────────────
     def _combine(self, other, op):
@@ -387,12 +510,18 @@ class Q:
         return Q.from_pair(op((self._n, self._d), pair))
 
     def __add__(self, other):
+        if isinstance(other, complex):
+            return self._complex_op(other, "add")
         return self._combine(other, _rational.rational_add)
 
     def __radd__(self, other):
+        if isinstance(other, complex):
+            return self._complex_op(other, "add")
         return self._combine(other, _rational.rational_add)
 
     def __sub__(self, other):
+        if isinstance(other, complex):
+            return self._complex_op(other, "sub")
         pair = _as_pair(other)
         if pair is None:
             return NotImplemented
@@ -400,6 +529,8 @@ class Q:
                                                   (-pair[0], pair[1])))
 
     def __rsub__(self, other):
+        if isinstance(other, complex):
+            return self._complex_op(other, "sub", reflected=True)
         pair = _as_pair(other)
         if pair is None:
             return NotImplemented
@@ -450,15 +581,23 @@ class Q:
                                _coprime_product(a_den, b_den))
 
     def __mul__(self, other):
+        if isinstance(other, complex):
+            return self._complex_op(other, "mul")
         return self._mul(other)
 
     def __rmul__(self, other):
+        if isinstance(other, complex):
+            return self._complex_op(other, "mul")
         return self._mul(other)
 
     def __truediv__(self, other):
+        if isinstance(other, complex):
+            return self._complex_op(other, "div")
         return self._combine(other, _rational.rational_div)
 
     def __rtruediv__(self, other):
+        if isinstance(other, complex):
+            return self._complex_op(other, "div", reflected=True)
         pair = _as_pair(other)
         if pair is None:
             return NotImplemented
@@ -655,8 +794,23 @@ def to_q(value) -> "Q":
       precision lost; to *approximate* to a small denominator use Class-N
       ``rational.best_rational`` instead);
     - a ``(num, den)`` int pair (srmech's rational house form) → ``Q(num, den)``;
+    - a ``str`` carrying DECIMAL or RATIONAL text (``"0.1"``, ``"-1.5e-3"``,
+      ``"1_000.000_1"``, ``"1/10"``) → the exact rational that text ALREADY
+      names — rc479 (`#T1188`), contract A. ``to_q("0.1")`` is ``Q(1, 10)``,
+      not ``Q.from_float(0.1)``: the decimal ``0.1`` is a rational the reader
+      can hold, and only the binary64 SPELLING of it is the dyadic
+      ``3602879701896397 / 2**55``. A ``float`` handed in as a float keeps
+      that binary value (the bullet above), because a float is a carrier the
+      caller ELECTED; text is not.
     - any object exposing the numeric ``as_integer_ratio`` protocol (a
       :class:`~fractions.Fraction`, another ``Q``, an ``int``) → its exact pair.
+
+    Raises ``ValueError`` on text that names no rational (``"nan"``,
+    ``"inf"``, ``"0x10"``, ``"1j"``, a malformed exponent) and on text past
+    the :data:`MAX_DEC_DIGITS` bound; ``TypeError`` on any other type. Through
+    rc478 every one of ``to_q("0.1")`` / ``to_q("1/10")`` / ``to_q("1e400")``
+    / ``to_q("-0.0")`` raised ``TypeError``, so widening to ``str`` is purely
+    ADDITIVE — no caller changes behaviour.
 
     The two-int constructor call ``Fraction(num, den)`` maps to ``Q(num, den)``
     directly (not through here — ``to_q`` is the one-argument coercion)."""
@@ -666,6 +820,13 @@ def to_q(value) -> "Q":
         return Q(value)
     if isinstance(value, float):
         return Q.from_float(value)
+    if isinstance(value, str):
+        pair = decimal_text_to_pair(value)          # ValueError (A1) propagates
+        if pair is None:
+            raise ValueError(
+                f"to_q: {value!r} names no exact rational (nan / inf / a "
+                f"non-decimal literal / a malformed exponent have no Q)")
+        return Q(pair[0], pair[1])
     if (isinstance(value, (tuple, list)) and len(value) == 2
             and isinstance(value[0], int) and isinstance(value[1], int)):
         return Q(value[0], value[1])
@@ -675,7 +836,249 @@ def to_q(value) -> "Q":
         return Q(int(num), int(den))
     raise TypeError(
         f"to_q: cannot coerce {type(value).__name__} to an exact Q "
-        f"(expected Q / int / float / (num, den) pair / as_integer_ratio-able)")
+        f"(expected Q / int / float / str / (num, den) pair / "
+        f"as_integer_ratio-able)")
+
+
+# ── rc479 (`#T1188`) — CONTRACT A: decimal TEXT is the rational it already is ─
+#
+# A caller's decimal text arriving at a srmech entry — a JSON literal, a TOML
+# literal, an MCP argument, a CLI `--input` — is READ as the exact rational it
+# already names. `0.1` in a document is one tenth; binary64's
+# `3602879701896397 / 2**55` is a SPELLING of it that this package no longer
+# imposes at the door. A Python `float` passed in code keeps its exact binary
+# value (`Q.from_float`), because that carrier was the caller's election.
+#
+# The reader is integer-only: no `fractions`, no `math.*`, no float on the
+# exact path, and NOTHING is built before the bound is checked.
+
+#: The A1 bound — the largest number of DECIMAL DIGITS either component of the
+#: **unreduced** ``(num, den)`` pair may carry before the reader REFUSES the
+#: token. 4300 is the limit CPython itself applies to an integer string
+#: conversion (``sys.get_int_max_str_digits()``'s default), so the refusal
+#: boundary is the one a caller already meets on ``int(text)``.
+#:
+#: ⚠️ It is a **srmech constant**, deliberately not ``sys.get_int_max_str_digits()``.
+#: Measured: after ``sys.set_int_max_str_digits(100000)``, ``int('1'*5000)``
+#: succeeds — so reading the host's limit would let a host move a srmech
+#: contract, and the two projections would then refuse different tokens. The C
+#: node carries the same number.
+#:
+#: ⚠️ The bound applies to the **UNREDUCED** pair, because it is a
+#: PRE-CONSTRUCTION resource bound — the digit counts are closed forms over the
+#: scanned string and nothing is built before the test. Measured consequence:
+#: ``5e-4300`` is REFUSED (unreduced denominator ``10**4300``, 4301 digits)
+#: although its REDUCED denominator ``2*10**4299`` has 4300 and would fit.
+#: That is stated rather than left implicit, because the C node computes the
+#: same thing from the same scan form and the two projections must refuse the
+#: same token.
+MAX_DEC_DIGITS: int = 4300
+
+#: The largest SIGNIFICANT width of a token's exponent digit run. Ten decimal
+#: digits reach ±9 999 999 999, four thousand times past :data:`MAX_DEC_DIGITS`,
+#: so nothing inside the bound is excluded by it; its purpose is that the
+#: exponent is never itself built as an unbounded integer (``1e``+``9``×5000
+#: would otherwise hit CPython's own int-from-str limit and refuse with a
+#: message about the wrong quantity). Leading zeros are stripped first, so
+#: ``1e0000000000000000400`` is the ``1e400`` it spells.
+_EXP_DIGITS_MAX: int = 10
+
+
+def _digits_only(s: str) -> bool:
+    """``True`` when ``s`` is a non-empty run of ASCII ``0``-``9``.
+
+    ``str.isdigit()`` alone is not that test — it is ``True`` for the
+    Arabic-Indic ``'٣'`` and for superscripts, and ``int('٣')`` is 3, so a
+    reader built on it would accept spellings no JSON or TOML lexer emits.
+    """
+    return bool(s) and s.isascii() and s.isdigit()
+
+
+def _underscores_are_internal(s: str) -> bool:
+    """``True`` when every ``_`` in ``s`` sits between two ASCII digits.
+
+    TOML hands ``parse_float`` its RAW token, underscores included
+    (``1_000.000_1`` — measured), and its own lexer has already validated the
+    placement; this re-validates it because :func:`to_q` accepts caller text
+    that no lexer has seen.
+    """
+    for i, ch in enumerate(s):
+        if ch != "_":
+            continue
+        if i == 0 or i == len(s) - 1:
+            return False
+        if not (s[i - 1].isascii() and s[i - 1].isdigit()
+                and s[i + 1].isascii() and s[i + 1].isdigit()):
+            return False
+    return True
+
+
+def decimal_text_to_pair(text):
+    """The exact ``(num, den)`` integer pair a DECIMAL or RATIONAL text token
+    already names, or ``None`` when the token names no rational at all.
+
+    ``None`` — never an exception — for ``nan`` / ``inf`` / ``-inf`` /
+    ``Infinity`` / ``0x10`` / ``1j`` / an empty or malformed token. That is
+    **rule Z1**: the parser hook falls back to ``float(text)`` there, which is
+    what the four LIVE shipped proof cases carrying ``nan`` / ``inf`` /
+    ``-inf`` require, and it keeps a malformed token raising exactly the error
+    ``float()`` / the stdlib lexer already raised for it.
+
+    Raises ``ValueError`` — the A1 bound — when either component of the
+    unreduced pair would carry more than :data:`MAX_DEC_DIGITS` digits.
+
+    ⚠️ **THE ZERO COLLAPSE, and it is the order that matters.** A significand
+    that is ALL ZEROS names the value zero whatever its exponent says, so
+    ``0e999999999`` returns ``(0, 1)`` rather than refusing on a nine-digit
+    numerator. The bound is a RESOURCE bound: for a zero significand
+    ``int(digits)`` is never called and ``10**e`` is never built, so there is
+    nothing to bound. Five legal spellings ride it — ``0e999999999``,
+    ``0e-999999999``, ``-0e999999999``, ``0.0e999999999`` and ``'0.'`` +
+    ``'0'``×5000 — every one of them accepted by ``float`` AND ``json`` AND
+    ``tomllib`` today, and a reader that refused them would be a live
+    behaviour regression.
+
+    The collapse runs **after** the exponent has been SYNTACTICALLY validated
+    and **before** any digit-count test. Both halves are load-bearing: hoist
+    it above the validation and ``0e`` / ``0eX`` start being accepted; put it
+    below the bound and the five tokens start being refused. This is not a new
+    invention — ``c/src/srmech_toml.c``'s scanner has collapsed an all-zero
+    digit run to ``ndig = 0, E = 0`` (sign preserved) since long before this
+    rc, and the Python side is that shape ported.
+    """
+    if not isinstance(text, str):
+        return None
+    s = text.strip()
+    if not s:
+        return None
+    neg = False
+    if s[0] in "+-":
+        neg = (s[0] == "-")
+        s = s[1:]
+    if not s:
+        return None
+    if "_" in s:
+        if not _underscores_are_internal(s):
+            return None
+        s = s.replace("_", "")
+
+    # The rational house form in text: "1/10". No document lexer emits it —
+    # this branch exists for `to_q`, which reads caller text.
+    if "/" in s:
+        a, _slash, b = s.partition("/")
+        if not (_digits_only(a) and _digits_only(b)):
+            return None
+        if len(a) > MAX_DEC_DIGITS or len(b) > MAX_DEC_DIGITS:
+            raise ValueError(
+                f"exact rational reader: {text!r} has a component of "
+                f"{max(len(a), len(b))} digits; exceeds the limit "
+                f"({MAX_DEC_DIGITS}) for integer string conversion")
+        den = int(b)
+        if den == 0:
+            return None
+        num = int(a)
+        return (-num if neg else num, den)
+
+    low = s.lower()
+    epos = low.find("e")
+    if epos == -1:
+        mant, edig = s, ""
+    else:
+        mant, edig = s[:epos], s[epos + 1:]
+
+    ip, dot, fp = mant.partition(".")
+    if "." in fp:
+        return None
+    if ip and not _digits_only(ip):
+        return None
+    if fp and not _digits_only(fp):
+        return None
+    if not ip and not fp:
+        return None
+
+    esign = 1
+    if epos != -1:
+        if edig[:1] in ("+", "-"):
+            esign = -1 if edig[0] == "-" else 1
+            edig = edig[1:]
+        if not _digits_only(edig):
+            return None                 # `0e`, `0eX` — malformed, stays an error
+
+    digits = ip + fp
+    # ── THE ZERO COLLAPSE — after exponent syntax, before any digit count ──
+    if not digits.strip("0"):
+        return (0, 1)
+
+    # CPython counts LEADING ZEROS when it refuses an integer string
+    # conversion (`int('0'*5000 + '1'*10)` raises although the value has ten
+    # digits), so the raw run is bounded the same way. No document can reach
+    # this — JSON and TOML both forbid a leading zero — but a caller's string
+    # can, and the two must agree about it.
+    if len(ip) + len(fp) > MAX_DEC_DIGITS:
+        raise ValueError(
+            f"exact decimal reader: the significand of {text[:32]!r} has "
+            f"{len(ip) + len(fp)} digits; exceeds the limit "
+            f"({MAX_DEC_DIGITS}) for integer string conversion")
+
+    esig = edig.lstrip("0")
+    if len(esig) > _EXP_DIGITS_MAX:
+        raise ValueError(
+            f"exact decimal reader: the exponent of {text[:32]!r} has "
+            f"{len(esig)} significant digits; exceeds the limit "
+            f"({_EXP_DIGITS_MAX}) this reader will build as an integer")
+    exp = esign * int(esig) if esig else 0
+
+    sig = digits.lstrip("0")
+    e = exp - len(fp)
+    # `sig` carries no leading zero, so `int(sig) * 10**e` has exactly
+    # `len(sig) + e` digits and `10**(-e)` exactly `1 + (-e)`. Both are EXACT
+    # closed forms — they never overcount — so a refusal here is never a false
+    # positive, and the zero significand above is the only class that needed
+    # a special case.
+    num_digits = len(sig) + (e if e > 0 else 0)
+    den_digits = 1 + (-e if e < 0 else 0)
+    if num_digits > MAX_DEC_DIGITS:
+        raise ValueError(
+            f"exact decimal reader: numerator would have {num_digits} "
+            f"digits; exceeds the limit ({MAX_DEC_DIGITS}) for integer "
+            f"string conversion")
+    if den_digits > MAX_DEC_DIGITS:
+        raise ValueError(
+            f"exact decimal reader: denominator would have {den_digits} "
+            f"digits; exceeds the limit ({MAX_DEC_DIGITS}) for integer "
+            f"string conversion")
+
+    if e >= 0:
+        num, den = int(sig) * 10 ** e, 1
+    else:
+        num, den = int(sig), 10 ** (-e)
+    return (-num if neg else num, den)
+
+
+def parse_float_exact(text):
+    """The ``parse_float=`` hook both srmech front doors install (rc479).
+
+    Returns an exact :class:`Q` for every decimal token, and a ``float`` for
+    the two classes ``Q`` cannot hold:
+
+    * **non-finite** — ``nan`` / ``inf`` / ``-inf``, which
+      :func:`decimal_text_to_pair` reads as ``None`` (rule Z1). TOML hands
+      these to ``parse_float`` like any other token; JSON routes them through
+      ``parse_constant`` instead and never reaches here.
+    * **negative zero** — ``Q`` has no signed zero, and ``-0.0`` is a value
+      ``float`` distinguishes. A literally-zero token SPELLED with a leading
+      ``-`` therefore stays the float ``-0.0`` it is today.
+
+    An A1 refusal propagates as ``ValueError`` out of the parse, which is the
+    class and family CPython's own ``int(text)`` refusal already uses.
+    """
+    pair = decimal_text_to_pair(text)
+    if pair is None:
+        return float(text)                  # Z1: nan / inf / -inf
+    num, den = pair
+    if num == 0 and text.lstrip()[:1] == "-":
+        return float(text)                  # Z1: -0.0 keeps its sign
+    return Q(num, den)
 
 
 # ── rc466 (`#T1188`) — THE ONE exact-operand reader ─────────────────────────
