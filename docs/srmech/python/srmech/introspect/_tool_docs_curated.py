@@ -4596,8 +4596,9 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                        'as_quat4([0.0] * 4 + [1.0] + [0.0] * 3)\n'
                        '                                  # -> ValueError (e4..e7 '
                        'must be zero)\n'},
- 'explanation': 'WHAT — Class M: coerce one QDFT sample to a plain 4-list of '
-                'floats — accepting a 4-component quaternion or the '
+ 'explanation': 'WHAT — Class M: coerce one QDFT sample to a plain 4-list in '
+                "THE OPERAND'S OWN CARRIER — accepting a 4-component "
+                'quaternion or the '
                 'octonion-embedded 8-vector form with ``e4..e7 == 0``, and '
                 'RAISING on a nonzero tail (accepting it would silently '
                 'project an octonion into ℍ, which is a value error, not a '
@@ -4608,8 +4609,15 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'promoted because a declared chain cannot honestly name a '
                 'private symbol — the BLK-REGMAP resolution is that every '
                 'step of a shipped descriptor is a REGISTERED op. '
-                '``float()`` coercion is exact on floats, so the map order '
-                'is the shipped order. SIBLING — ``srmech.cascade.as_oct8`` '
+                'On a FLOAT sample ``float()`` coercion is exact, so the map '
+                'order is the shipped order — that sentence is kept and '
+                'SCOPED, because it was written of this op and stays true of '
+                'it. What rc479 (`#T1188`) changed is the wrapper above: '
+                '``quaternion_dft`` no longer casts to float at its own '
+                'entry, so an exact sample reaches this op exact and leaves '
+                'it exact, and a ``Qalg`` leaf — which the transform now '
+                'RETURNS off a non-rational turn — is accepted back, closing '
+                'a round trip that raised. SIBLING — ``srmech.cascade.as_oct8`` '
                 'is the octonion twin (zero-EXTENDS a quaternion instead of '
                 'truncating); ``srmech.cascade.qdft_resolve_mu`` is the '
                 'axis-side coercion of the same one-resolution contract.'},
@@ -4686,7 +4694,9 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
     'srmech.cascade.correlation_product': {'example': {'input': {'i': 'the sample index from the inner map',
                        'j': 'the wrapped index (i + k) mod n from the '
                             'registered Class-I mod_add',
-                       'x': 'the (already float) signal list'},
+                       'x': 'the signal list, in whatever carrier its own '
+                            'leaves elect (rc479: the wrapper no longer '
+                            'casts it to float at its entry)'},
              'output': 'correlation_product([1.0, -2.0, 3.0], 0, 2) = 3.0 — '
                        'float(x[0]) * float(x[2]), the pointwise '
                        'Wiener-Khinchin pairing',
@@ -4714,10 +4724,16 @@ print("e2*e7: ring lane (2+7)%8 =", ring[2][7].index(1), "| CD lane 2^7 =", 2 ^ 
                 'paired with the REGISTERED Class-I ``mod_add`` computing '
                 "``j = (i + k) mod n`` — the census's point was that the "
                 'index arithmetic needed no new leaf, only the product did. '
-                "Since rc420 the shipped op's pure fallback CALLS this op "
-                '(``float()`` is idempotent on the pre-coerced signal, so '
-                'the float-op order is unchanged), which is what makes the '
-                'chain-vs-op bit-identity structural. Pointwise and total: '
+                "Since rc420 the shipped op's pure fallback CALLS this op, "
+                'which is what makes the chain-vs-op bit-identity '
+                'structural. That clause used to add "``float()`` is '
+                'idempotent on the pre-coerced signal, so the float-op order '
+                'is unchanged", describing an entry cast rc479 (`#T1188`) '
+                'REMOVED: the wrapper took ``[float(v) for v in x]`` and the '
+                'declared chain did not, so under an exact sample the two '
+                'routes computed different numbers and the bit-identity was '
+                'structural only for a float one. The entry is ``list(x)`` '
+                'now and this op decides each product\'s rung. Pointwise and total: '
                 "the ``i``/``k`` iteration lives in the chain's map "
                 'combinator layer, never in here. SIBLING — '
                 '``srmech.cascade.compensated_sum`` is the Σ that consumes '

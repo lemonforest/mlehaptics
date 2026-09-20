@@ -229,6 +229,13 @@ _TYPE_LEXICON: Dict[str, str] = {
     # HAND-MAINTAINED and nothing syncs it for you. Deliberately ASCII-only
     # hints (see the rc463 note above).
     "list[float] | list[Q]": "array",
+    # rc479 (`#T1188`): the same union with the exact-ALGEBRAIC leaf, for
+    # as_quat4 / as_oct8. Still an ARRAY on the wire — a Qalg has no JSON
+    # form, so it is an IN-PROCESS arm exactly as the `Qalg` row above is,
+    # and a schema-obedient client sees the array it already sent. Mirrored
+    # in c/src/srmech_tool_schema.c in this same change; that table is
+    # HAND-MAINTAINED and nothing syncs it for you.
+    "list[float] | list[Q] | list[Qalg]": "array",
     "Optional[list[int | Q | float]]": "array",
     "list[list[float]] | list[list[Q]]": "array",
     "Optional[list[list[float]] | list[list[Q]]]": "array",
@@ -384,6 +391,10 @@ _ENCODING_HINT: Dict[str, str] = {
     # mirrored byte-for-byte into MCP_ENCODING_HINT in c/src/srmech_tool_schema.c.
     "list[float] | list[Q]": (
         "flat JSON array. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"
+    ),
+    # rc479 (`#T1188`): the Qalg arm of the same union.
+    "list[float] | list[Q] | list[Qalg]": (
+        "flat JSON array. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one. A Qalg leaf (an exact algebraic number, what quaternion_dft / octonion_dft return off a rational turn) has no JSON form and is an IN-PROCESS arm only"
     ),
     "Optional[list[int | Q | float]]": (
         "flat JSON array (or null): each entry a bare integer, a float, or an exact [numerator, denominator] pair"

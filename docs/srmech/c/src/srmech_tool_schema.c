@@ -569,6 +569,10 @@ static const mcp_kv_t MCP_TYPE_LEXICON[] = {
      * an ARRAY on the wire. Mirrors _TYPE_LEXICON in
      * python/srmech/mcp/_tools.py; this table is HAND-MAINTAINED. */
     {"list[float] | list[Q]", "array"},
+    /* rc479 (#T1188): the same union with the exact-ALGEBRAIC leaf, for
+     * as_quat4 / as_oct8. Still an ARRAY on the wire; the Qalg arm is
+     * IN-PROCESS only, exactly as the {"Qalg", "object"} row above. */
+    {"list[float] | list[Q] | list[Qalg]", "array"},
     {"Optional[list[int | Q | float]]", "array"},
     {"list[list[float]] | list[list[Q]]", "array"},
     {"Optional[list[list[float]] | list[list[Q]]]", "array"},
@@ -687,6 +691,9 @@ static const mcp_kv_t MCP_ENCODING_HINT[] = {
      * mirrored byte-for-byte from _ENCODING_HINT in python/srmech/mcp/_tools.py. */
     {"list[float] | list[Q]",
      "flat JSON array. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one"},
+    /* rc479 (#T1188): the Qalg arm of the same union. */
+    {"list[float] | list[Q] | list[Qalg]",
+     "flat JSON array. The LEAVES select the carrier: bare integers or [numerator, denominator] pairs take the EXACT-Q rung, floats take the float64 one. A Qalg leaf (an exact algebraic number, what quaternion_dft / octonion_dft return off a rational turn) has no JSON form and is an IN-PROCESS arm only"},
     {"Optional[list[int | Q | float]]",
      "flat JSON array (or null): each entry a bare integer, a float, or an exact [numerator, denominator] pair"},
     {"list[list[float]] | list[list[Q]]",
