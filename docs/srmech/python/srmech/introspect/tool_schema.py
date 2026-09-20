@@ -10337,7 +10337,7 @@ def _register_primitive_class_tools() -> None:
                         P("left", "bool", True, "twiddle side"),
                         P("sigma", "int", True, "the dft_sigma convention"),
                         P("mu_hat", "list[float]", True, "resolved unit axis")),
-            returns=R("list[float] | list[Q] | list[Qalg]", "the 4-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`) AND on every axis width (rc469): list[Q] where the cosine and the axis-SCALED sine are both rational, list[Qalg] over Phi_M otherwise, M = lcm(n, 4 | 12 | 28) for an axis of width 1 | 1/sqrt(3) | 1/sqrt(7). The rational set is the quarter turns 4*k*m == 0 mod n only at width 1. It RAISES above the MAX_CYCLOTOMIC_INDEX=256 field cap (a SIEVE over n, not a ceiling) and on a direction with no exact unit in those fields; list[float] (accurate to round-off) for a float sample"),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the 4-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`) AND on every axis width (rc469): list[Q] where the cosine and the axis-SCALED sine are both rational, list[Qalg] over Phi_M otherwise, M = lcm(n, 4 | 12 | 28) for an axis of width 1 | 1/sqrt(3) | 1/sqrt(7). The rational set is the quarter turns 4*k*m == 0 mod n only at width 1. It RAISES above the MAX_CYCLOTOMIC_DEGREE=888 field-DEGREE cap (rc478, `#T1188` — the bound is on phi(M), the size of the object, not on M; still a SIEVE over n, not a ceiling: axis_k 1/3/7 admit 128/128/114 of n<=128, first refusal on the 1/sqrt(7) axis at n=79, Phi_2212 of degree 936) and on a direction with no exact unit in those fields; list[float] (accurate to round-off) for a float sample"),
         ),
         ToolEntry(
             name="srmech.cascade.odft_summand", owner="srmech",
@@ -10361,7 +10361,7 @@ def _register_primitive_class_tools() -> None:
                         P("mu_hat", "list[float]", True),
                         P("mu_r_hat", "list[float]", True,
                           "right axis (two-sided; ignored one-sided)")),
-            returns=R("list[float] | list[Q] | list[Qalg]", "the 8-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`) AND on every axis width (rc469): list[Q] where the cosine and the axis-SCALED sine are both rational, list[Qalg] over Phi_M otherwise, M = lcm(n, 4 | 12 | 28) for an axis of width 1 | 1/sqrt(3) | 1/sqrt(7). It RAISES above the MAX_CYCLOTOMIC_INDEX=256 field cap (a SIEVE over n, not a ceiling), on a direction with no exact unit in those fields, and — two-sided only — on a MIXED-WIDTH axis pair, whose compositum is not a simple extension; list[float] (accurate to round-off) for a float sample"),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the 8-component summand for bin k — for an exact sample, EXACT on every turn (rc468, `#T1188`) AND on every axis width (rc469): list[Q] where the cosine and the axis-SCALED sine are both rational, list[Qalg] over Phi_M otherwise, M = lcm(n, 4 | 12 | 28) for an axis of width 1 | 1/sqrt(3) | 1/sqrt(7). It RAISES above the MAX_CYCLOTOMIC_DEGREE=888 field-DEGREE cap (rc478, `#T1188` — the bound is on phi(M), the size of the object, not on M; still a SIEVE over n, not a ceiling: axis_k 1/3/7 admit 128/128/114 of n<=128, first refusal on the 1/sqrt(7) axis at n=79, Phi_2212 of degree 936), on a direction with no exact unit in those fields, and — two-sided only — on a MIXED-WIDTH axis pair, whose compositum is not a simple extension; list[float] (accurate to round-off) for a float sample"),
         ),
         ToolEntry(
             name="srmech.cascade.kuramoto_step", owner="srmech",
@@ -10699,9 +10699,12 @@ def _register_primitive_class_tools() -> None:
                     "turn=(1, 3) at k_axes=3 is the all-rational (-1/2, 1/2, 1/2, 1/2, "
                     "0, 0, 0, 0), the order-3 unit quaternion of the binary tetrahedral "
                     "group, because sin(2pi/3)/sqrt3 = 1/2). M is lcm(n,4) / lcm(n,12) "
-                    "/ lcm(n,28) for k_axes 1/3/7, and turn= RAISES above "
-                    "MAX_CYCLOTOMIC_INDEX = 256 rather than falling back to a rounded "
-                    "angle. Exactly one of theta= / turn= is given; giving neither or "
+                    "/ lcm(n,28) for k_axes 1/3/7, and turn= RAISES above the "
+                    "MAX_CYCLOTOMIC_DEGREE = 888 field-DEGREE cap (rc478, `#T1188` "
+                    "— the bound is on phi(M), the size of the object, not on M; a "
+                    "SIEVE over n, not a ceiling, the largest admitted n being 3780) "
+                    "rather than falling back to a rounded "
+                    "angle, naming the index and its degree. Exactly one of theta= / turn= is given; giving neither or "
                     "both is a ValueError.",
             parameters=(
                 P("theta", "float", False,
@@ -16578,9 +16581,14 @@ def _register_qm_tools() -> None:
                     "all-rational (-1/2, 1/2, 1/2, 1/2), the order-3 unit "
                     "quaternion of the binary tetrahedral group). "
                     "M = lcm(N,4) / lcm(N,12) / lcm(N,28) by axis; "
-                    "above MAX_CYCLOTOMIC_INDEX = 256 the exact route RAISES "
+                    "above the MAX_CYCLOTOMIC_DEGREE = 888 field-DEGREE cap "
+                    "(rc478, `#T1188` — on phi(M), not on M; a SIEVE over N, "
+                    "not a ceiling) the exact route RAISES, naming the index "
+                    "and its degree, "
                     "rather than falling back, because a fallback would be a "
-                    "silent demotion. exact=False is unchanged byte for byte "
+                    "silent demotion. The Antikythera Exeligmos row "
+                    "mu='diagonal' at N=669 is the named refusal: Phi_18732 at "
+                    "degree 5328. exact=False is unchanged byte for byte "
                     "and keeps its C peer. Class I∘N∘C∘M. Same-rc C peer "
                     "srmech_octonion_twiddle (byte-exact on the float route; "
                     "the exact route is Python-side, no ABI move). WHY A "
@@ -16829,8 +16837,11 @@ def _register_qm_tools() -> None:
                     "quaternion of the binary tetrahedral group, because "
                     "sin(2pi/3)/sqrt3 = 1/2). M = lcm(N,4) for a basis axis "
                     "and lcm(N,12) for "
-                    "'ijk'; above MAX_CYCLOTOMIC_INDEX = 256 the exact route "
-                    "RAISES rather than falling back, because a fallback would "
+                    "'ijk'; above the MAX_CYCLOTOMIC_DEGREE = 888 field-DEGREE "
+                    "cap (rc478, `#T1188` — on phi(M), not on M; a SIEVE over "
+                    "N, not a ceiling) the exact route "
+                    "RAISES, naming the index and its degree, rather than "
+                    "falling back, because a fallback would "
                     "be a silent demotion. exact=False is unchanged byte for "
                     "byte and keeps its C peer. Class I∘N∘C∘M. Same-rc C peer "
                     "srmech_quaternion_twiddle (byte-exact on the float route; "
