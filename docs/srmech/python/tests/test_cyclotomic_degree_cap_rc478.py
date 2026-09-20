@@ -176,6 +176,72 @@ def test_G_CAP_BOUNDARY_is_two_sided_on_every_axis(axis_k, below, above,
             < cyclotomic_degree(_index(at_refusal, axis_k)))
 
 
+def test_G_CAP_BOUNDARY_a_huge_n_refuses_WITHOUT_factoring() -> None:
+    """The cheap-refusal path, and the regression it repairs.
+
+    Moving the criterion from the index to the DEGREE means the guard must
+    SIZE the field before refusing it, and sizing means factoring —
+    ``srmech.math.primes.factor`` is trial division, so the refusal cost grew
+    as ``√n``. MEASURED on this tree before the repair:
+    ``cos_sin_2pi_k_over_n`` refused ``n = 10¹¹`` in 55 ms, ``n = 10¹⁵`` in
+    2.36 s and ``n = 2⁶² − 57`` in **211.8 s**, where rc477's index comparison
+    refused all three in microseconds. The ANSWERS were never wrong; what
+    regressed is how long a refusal takes, and a three-minute refusal on a
+    public op is a defect whether or not anyone passes that ``n``.
+
+    ``φ(M) ≥ √(M/2)`` for every ``M ≥ 1``, so ``φ(M) ≤ P`` forces
+    ``M ≤ 2P²`` and any index above that is refused with no factorisation at
+    all. This row asserts the two things that make it safe: the refusal still
+    happens, and the shortcut **cannot change a verdict**.
+
+    Does NOT assert a time. It asserts the ARITHMETIC that makes the shortcut
+    sound; the milliseconds are recorded in the CHANGELOG.
+    """
+    bound = _qalg._DEGREE_CERTAIN_INDEX_MAX
+    assert bound == 2 * MAX_CYCLOTOMIC_DEGREE ** 2 == 1_577_088
+
+    # (1) the inequality, verified DIRECTLY over the whole shortcut range
+    # rather than cited: 2*phi(M)^2 >= M, in integers, no float and no sqrt.
+    for m in range(1, 200_001):
+        assert 2 * cyclotomic_degree(m) ** 2 >= m, m
+    for m in (bound, bound - 1, bound + 1, 510_510, 9_699_690):
+        assert 2 * cyclotomic_degree(m) ** 2 >= m, m
+
+    # (2) no ADMITTED index comes anywhere near the shortcut, so it cannot
+    # refuse something the degree rule would admit. 3990 is 395x below it.
+    admitted_max = max(m for m in range(1, 100_001)
+                       if cyclotomic_degree(m) <= MAX_CYCLOTOMIC_DEGREE)
+    assert admitted_max == 3990
+    assert admitted_max * 395 < bound
+
+    # (3) the shortcut fires, says so, and does NOT name a degree it did not
+    # compute — the honest half of the two message shapes.
+    phrase = _qalg._field_too_big(bound + 1)
+    assert phrase is not None
+    assert "without factoring" in phrase
+    assert "of a degree above" in phrase
+    # ...while just below it the exact degree IS named
+    near = _qalg._field_too_big(3991)
+    assert near is not None and "of degree " in near
+    assert "without factoring" not in near
+    # ...and an admitted field returns None on both sides of the helper
+    assert _qalg._field_too_big(3990) is None
+    assert _qalg._field_too_big(2676) is None
+
+    # (4) end to end, on the two routes that can actually reach a huge index.
+    # The twiddle routes cannot: _TWIDDLE_N_MAX = 2**32 refuses first, which is
+    # why their worst exposure was ~30 ms rather than 211 s — so this row uses
+    # the largest n each route admits at all, not one number for all three.
+    with pytest.raises(ValueError, match="without factoring"):
+        cos_sin_2pi_k_over_n(2 ** 62 - 57)
+    with pytest.raises(ValueError, match="without factoring"):
+        hypercomplex_exp(k_axes=3, turn=(1, 2 ** 62 - 57))
+    with pytest.raises(ValueError, match="without factoring"):
+        quaternion_twiddle(1, 1, 2 ** 31 - 1, mu="ijk", exact=True)
+    with pytest.raises(ValueError, match=r"n_points must be in \[1, 2\*\*32\)"):
+        quaternion_twiddle(1, 1, 2 ** 62 - 57, mu="ijk", exact=True)
+
+
 # ── G-CAP-EXELIGMOS ─────────────────────────────────────────────────────────
 def test_G_CAP_EXELIGMOS_answers_on_both_cheap_axes_and_is_NAMED_on_the_seventh(
 ) -> None:

@@ -1217,13 +1217,11 @@ def quaternion_twiddle(j: int, k: int, n_points: int, *,
     if exact:
         weights, axis_k = _exact_axis4(mu, "quaternion_twiddle")
         index = _qalg._turn_field_index(n_points, axis_k)
-        degree = _qalg._cyclotomic_degree(index)
-        if degree > _qalg.MAX_CYCLOTOMIC_DEGREE:
+        too_big = _qalg._field_too_big(index)
+        if too_big is not None:
             raise ValueError(
-                f"quaternion_twiddle: exact=True builds Q(zeta_{index}) of "
-                f"degree {degree} for n_points={n_points} on this axis, above "
-                f"the measured "
-                f"MAX_CYCLOTOMIC_DEGREE={_qalg.MAX_CYCLOTOMIC_DEGREE} cap. The "
+                f"quaternion_twiddle: exact=True builds Q(zeta_{index}) "
+                f"{too_big} for n_points={n_points} on this axis. The "
                 f"field index is lcm(n_points, 4) for a rational axis, "
                 f"lcm(n_points, 12) for 1/sqrt(3) and lcm(n_points, 28) for "
                 f"1/sqrt(7), and the cap is on the DEGREE phi of that index — "

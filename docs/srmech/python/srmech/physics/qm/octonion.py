@@ -1072,7 +1072,7 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
     moved the criterion from ``M`` to ``φ(M)``: ``'ijk'`` at ``N = 128``
     (degree 128) and ``'diagonal'`` at ``N = 64`` (degree 192) were refused
     under the rc477 index rule and are admitted now, while the
-    ``'diagonal'`` Exeligmos row ``N = 669`` (``lcm`` 18 732, degree 5 328)
+    ``'diagonal'`` Exeligmos row ``N = 669`` (``lcm`` 18732, degree 5328)
     is refused by name. A ``mu`` SEQUENCE is normalised EXACTLY rather than in
     float (see :func:`_exact_axis8`), so ``mu=[0, 1, 1, 1]`` and the float64
     ``'ijk'`` vector both land on the same exact ``(0,1,1,1)/√3``; what it
@@ -1161,13 +1161,11 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
     if exact:
         weights, axis_k = _exact_axis8(mu, "octonion_twiddle")
         index = _qalg._turn_field_index(n_points, axis_k)
-        degree = _qalg._cyclotomic_degree(index)
-        if degree > _qalg.MAX_CYCLOTOMIC_DEGREE:
+        too_big = _qalg._field_too_big(index)
+        if too_big is not None:
             raise ValueError(
-                f"octonion_twiddle: exact=True builds Q(zeta_{index}) of "
-                f"degree {degree} for n_points={n_points} on this axis, above "
-                f"the measured "
-                f"MAX_CYCLOTOMIC_DEGREE={_qalg.MAX_CYCLOTOMIC_DEGREE} cap. The "
+                f"octonion_twiddle: exact=True builds Q(zeta_{index}) "
+                f"{too_big} for n_points={n_points} on this axis. The "
                 f"field index is lcm(n_points, 4) for a rational axis, "
                 f"lcm(n_points, 12) for 1/sqrt(3) and lcm(n_points, 28) for "
                 f"1/sqrt(7), and the cap is on the DEGREE phi of that index — "

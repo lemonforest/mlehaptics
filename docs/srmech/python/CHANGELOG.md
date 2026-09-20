@@ -106,6 +106,25 @@ The shipped repair filters candidates by `φ(c) == x.degree` before taking ANY f
 
 A predicate scan of every **arithmetic-position** use of the old constant tree-wide found exactly **three**: this one and two `MAX + 1` boundary probes, both restated here. No other site in the tree was sized on the index.
 
+### A REGRESSION THIS SAME RC INTRODUCED, FOUND BY MEASUREMENT AND REPAIRED
+
+Moving the criterion from the index to the DEGREE means the guard must **size** the field before refusing it, and sizing means factoring. `srmech.math.primes.factor` is trial division, so the cost of a REFUSAL grew as `√n`. Measured, before the repair:
+
+| `n` handed to `cos_sin_2pi_k_over_n` | rc477 | rc478 first pass |
+|---|---|---|
+| 10¹¹ | µs | 55 ms |
+| 10¹³ | µs | 220 ms |
+| 10¹⁵ | µs | 2 356 ms |
+| **2⁶² − 57** | µs | **211 773 ms** |
+
+No answer was ever wrong — what regressed is how long a refusal takes, and a three-and-a-half-minute refusal on a public op is a defect whether or not anyone passes that `n`. **Never route around a known defect**, so it is fixed at root rather than noted.
+
+`φ(M) ≥ √(M/2)` for every `M ≥ 1`, so `φ(M) ≤ P` forces `M ≤ 2P²`. Above `_DEGREE_CERTAIN_INDEX_MAX = 2·888² = 1 577 088` the guard refuses **without factoring at all**. After the repair the same four rows measure **0.0 / 0.0 / 0.021 / 0.013 ms** — 211 773 ms → **0.013 ms**.
+
+It **cannot change a verdict**, and that is checked two ways rather than asserted: the inequality is verified directly as `2·φ(M)² ≥ M` in integers over `M = 1..200 000` plus the shortcut boundary and two primorials, and `max{M : φ(M) ≤ 888}` is measured at **3990** — **395× below** the shortcut. The refusal above the shortcut deliberately does **not** name a degree it never computed; it names the certificate instead, which is why there are two message shapes.
+
+The repair also made the six guards share one helper (`_field_too_big`), so their refusal vocabulary cannot drift apart. And it turned up a fact worth recording: **the two twiddle routes were never exposed**, because their own `_TWIDDLE_N_MAX = 2³²` refuses first, capping their worst factorisation at `√(28·2³²)` and their worst refusal at tens of ms. The routes that could reach the pathological case were `cos_sin_2pi_k_over_n` and `hypercomplex_exp`'s `turn=`, neither of which bounds `n` at all.
+
 ### THE NEW HELPER IS PRIVATE, AND THAT IS A DECISION A GATE FORCED
 
 `_cyclotomic_degree(index)` computes `φ(M)` from `primes.factor` alone and **never builds `Φ_M`** — 2.1 µs per call at index 18 732, which is the whole point: an admission guard must answer *"how big is the object this call would build?"* before paying for it. It is written public in the first pass, and `tests/test_registry_completeness_rc416.py` **FIRED** on it: a public `__all__` callable with no `ToolEntry` goes red. It is private rather than registered because the number it returns ALREADY ships on the registered surface, as `cyclotomic_polynomial(M)["degree"]` — a public peer would be a second op for a quantity that already exists. What rc478 needed was a CHEAP ROUTE to an existing quantity, so it lands beside `_cyclotomic_m` and `_turn_field_index` as module-private arithmetic, on the same ground `_inv_sqrt_k`'s docstring already records for itself.

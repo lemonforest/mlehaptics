@@ -387,12 +387,11 @@ def _exact_turn_pair(n: int, r: int, sigma: int, axis_k: int):
     refusals 65 / 23 / 11) were correct for ``lcm(n, base) ≤ 256`` and are
     superseded, not contradicted."""
     index = _qalg._turn_field_index(n, axis_k)
-    degree = _qalg._cyclotomic_degree(index)
-    if degree > _qalg.MAX_CYCLOTOMIC_DEGREE:
+    too_big = _qalg._field_too_big(index)
+    if too_big is not None:
         raise ValueError(
             f"exact twiddle: n={n} on an axis of width 1/sqrt({axis_k}) needs "
-            f"Q(zeta_{index}) of degree {degree}, above the measured "
-            f"MAX_CYCLOTOMIC_DEGREE={_qalg.MAX_CYCLOTOMIC_DEGREE} field cap. "
+            f"Q(zeta_{index}) {too_big}. "
             f"The field index is lcm(n, 4) for a rational axis, lcm(n, 12) for "
             f"1/sqrt(3) and lcm(n, 28) for 1/sqrt(7), and the cap is on the "
             f"DEGREE phi of that index, so the admissible n are a SIEVE and "
@@ -652,12 +651,11 @@ def _exp_at_turn(turn, k_axes: int) -> "tuple":
         raise ValueError(
             f"hypercomplex_exp: turn denominator must be >= 1; got {n_turn}")
     index = _qalg._turn_field_index(n_turn, k_axes)
-    degree = _qalg._cyclotomic_degree(index)
-    if degree > _qalg.MAX_CYCLOTOMIC_DEGREE:
+    too_big = _qalg._field_too_big(index)
+    if too_big is not None:
         raise ValueError(
             f"hypercomplex_exp: turn=({k_turn}, {n_turn}) at k_axes={k_axes} "
-            f"needs Q(zeta_{index}) of degree {degree}, above the measured "
-            f"MAX_CYCLOTOMIC_DEGREE={_qalg.MAX_CYCLOTOMIC_DEGREE} field cap. "
+            f"needs Q(zeta_{index}) {too_big}. "
             f"The exact route RAISES rather than falling back to a rounded "
             f"angle; hand theta= a float radian to take that carrier "
             f"deliberately")
@@ -2147,12 +2145,10 @@ def _exact_turn_plan(streams, axis, k_turn: int, n_turn: int):
                 f"fields normalise exactly); got {axis!r}")
     weights, axis_k = resolved
     index = _qalg._turn_field_index(n_turn, axis_k)
-    degree = _qalg._cyclotomic_degree(index)
-    if degree > _qalg.MAX_CYCLOTOMIC_DEGREE:
+    too_big = _qalg._field_too_big(index)
+    if too_big is not None:
         return (f"turn=({k_turn}, {n_turn}) on this axis needs "
-                f"Q(zeta_{index}) of degree {degree}, above the measured "
-                f"MAX_CYCLOTOMIC_DEGREE={_qalg.MAX_CYCLOTOMIC_DEGREE} field "
-                f"cap")
+                f"Q(zeta_{index}) {too_big}")
     return q_ex, octonion, weights, axis_k
 
 
