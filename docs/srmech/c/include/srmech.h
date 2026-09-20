@@ -64,8 +64,8 @@ extern "C" {
 #define SRMECH_VERSION_MAJOR 0
 #define SRMECH_VERSION_MINOR 9
 #define SRMECH_VERSION_PATCH 0
-#define SRMECH_VERSION_PRE "rc478"
-#define SRMECH_VERSION "0.9.0rc478"
+#define SRMECH_VERSION_PRE "rc479"
+#define SRMECH_VERSION "0.9.0rc479"
 
 /* ABI version. Bumped in lockstep with the Python shim's
  * EXPECTED_ABI_VERSION whenever the wire format of any exported
@@ -894,6 +894,47 @@ extern "C" {
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 — no on-disk format moves.
  *
+ * v30 - v0.9.0rc479 (`#T1188`): CONTRACT A - A DECIMAL LITERAL PAST THE DIGIT
+ *      BOUND IS REFUSED RATHER THAN ROUNDED. This is the v10 / v12 shape and
+ *      the v12 INSTANCE, to the same two exported symbols and with the same
+ *      status constant: no signature changes shape, but srmech_json_parse and
+ *      srmech_toml_parse now RETURN A DIFFERENT VALUE for a class of input.
+ *      Measured at the exported symbols, ABI 29 against ABI 30, both parsers:
+ *
+ *          1e4300   SRMECH_OK  f=inf   ->  SRMECH_ERR_LIMIT
+ *          1e-4300  SRMECH_OK  f=0.0   ->  SRMECH_ERR_LIMIT
+ *          5e-4300  SRMECH_OK  f=0.0   ->  SRMECH_ERR_LIMIT
+ *          1e99999  SRMECH_OK  f=inf   ->  SRMECH_ERR_LIMIT
+ *          1e1000000 SRMECH_OK f=inf   ->  SRMECH_ERR_LIMIT
+ *
+ *      and UNCHANGED, which is what makes it a boundary and not a ceiling:
+ *      1e400 / 1e-400 / 1e4299 / 1e-4299 / 1e308 / 1e309 all still answer
+ *      exactly as they did. The status block below states outright that
+ *      non-zero values "form part of the wire contract with the Python ctypes
+ *      binding", so reinterpreting one IS a wire-contract change - the ground
+ *      v12 bumped on at rc404 for these same two functions.
+ *
+ *      WHY: the Python projection now reads a decimal token as the EXACT
+ *      rational it names, bounded at SRMECH_DEC_MAX_DIGITS. A bound that held
+ *      in one projection and not the other would be two contracts wearing one
+ *      name, so the C node refuses the same tokens. What it does NOT do is
+ *      return a rational: no C value layer in this library can hold one
+ *      (dv_value_t and srmech_mval_t both carry double), so the exact reading
+ *      lives in the Python projection and the C parsers DECLINE a float
+ *      document to it - the decline contract that already ships.
+ *
+ *      THE ZERO SPELLINGS ARE UNAFFECTED AND THAT IS DELIBERATE. An all-zero
+ *      significand names zero whatever its exponent says and builds nothing,
+ *      so 0e999999999 / 0e-999999999 / -0e999999999 / 0.0e999999999 still
+ *      answer SRMECH_OK with the sign preserved. Putting the refusal inside
+ *      toml_f64_scan_exp - which runs BEFORE the all-zero collapse - compiles,
+ *      looks right, and turns all four into errors; that was measured on a
+ *      compiled variant, which is why toml_f64_scan_exp reports an "exceeded"
+ *      FLAG and the caller decides. 0e / 0eX stay SRMECH_ERR_BAD_INPUT.
+ *
+ *      No symbol is added or removed. SRMECH_GENOME_FORMAT_VERSION stays 20 -
+ *      no on-disk format moves.
+ *
  * v29 - v0.9.0rc477 (`#T1188`): THE AXIS IS THE NEAREST WORD, AND THE SCALE IS
  *      EXACT. One bump on the oldest of the grounds this header records -
  *      SERVED VALUES MOVE (v21 / v26 / v27 / v28) - and on nothing else. No
@@ -972,7 +1013,7 @@ extern "C" {
  *
  *      SRMECH_GENOME_FORMAT_VERSION stays 20 - no on-disk format moves.
  */
-#define SRMECH_ABI_VERSION 29
+#define SRMECH_ABI_VERSION 30
 
 /* ------------------------------------------------------------------ *
  * Thread-local storage qualifier (reentrancy support; #772)
@@ -6491,6 +6532,34 @@ srmech_status_t srmech_algebra_inertia_signature(const int64_t *table,
  * scratch is carved from a caller arena (srmech_json_write_ws), so a
  * container is bounded only by the caller's RAM. */
 #define SRMECH_JSON_MAX_DEPTH    64
+
+/* rc479 (#T1188) — CONTRACT A's digit bound, shared by BOTH parsers.
+ *
+ * The largest number of DECIMAL DIGITS either component of the UNREDUCED
+ * (num, den) pair a decimal token names may carry before the token is
+ * REFUSED with SRMECH_ERR_LIMIT. 4300 is the limit CPython itself applies
+ * to an integer string conversion, so the refusal boundary is the one a
+ * caller already meets, and the Python projection reads the SAME constant
+ * (srmech.math.q.MAX_DEC_DIGITS) rather than the host's own
+ * sys.get_int_max_str_digits() — a host must not be able to move a srmech
+ * contract, or the two projections would refuse different tokens.
+ *
+ * THE BOUND IS ON THE UNREDUCED PAIR, because it is a PRE-CONSTRUCTION
+ * resource bound computed from the scan form: `5e-4300` is refused
+ * (unreduced denominator 10^4300, 4301 digits) although its REDUCED
+ * denominator has 4300. Both projections compute it the same way from the
+ * same scan form and therefore refuse the same token.
+ *
+ * ⚠️ ORDER IS LOAD-BEARING. An all-zero significand names ZERO whatever its
+ * exponent says, and builds nothing, so there is nothing to bound:
+ * `0e999999999` must still be ACCEPTED. The bound is applied AFTER the
+ * scanner's all-zero collapse and AFTER the exponent has been
+ * SYNTACTICALLY validated (`0e` / `0eX` stay SRMECH_ERR_BAD_INPUT).
+ * Moving the refusal INTO the exponent scan compiles and looks right, and
+ * turns four legal zero spellings into errors — measured on a compiled
+ * variant before this rc shipped. Single-token object-like macro; JPL
+ * Rule 8 clean. */
+#define SRMECH_DEC_MAX_DIGITS    4300
 
 typedef enum {
     SRMECH_JSON_NULL = 0,

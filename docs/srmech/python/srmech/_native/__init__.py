@@ -298,6 +298,34 @@ from typing import Optional
 #        ``ws_bound`` on every call, so the stale library's answer is
 #        self-consistent and nothing else notices. This pin is the only refusal.
 #
+# v30 (rc479, `#T1188`) — CONTRACT A: A DECIMAL LITERAL PAST THE DIGIT BOUND IS
+#        REFUSED RATHER THAN ROUNDED. The v10 / v12 shape and the v12 INSTANCE
+#        — the same two exported symbols, the same status constant. No
+#        signature changes shape; `srmech_json_parse` and `srmech_toml_parse`
+#        RETURN A DIFFERENT VALUE for a class of input. Measured at the
+#        exported symbols, both parsers: `1e4300` / `1e-4300` / `5e-4300` /
+#        `1e99999` / `1e1000000` went `SRMECH_OK` (inf or 0.0) and now answer
+#        `SRMECH_ERR_LIMIT`, while `1e400` / `1e-400` / `1e4299` / `1e-4299` /
+#        `1e308` / `1e309` are unchanged — a boundary, not a ceiling.
+#
+#        THE PAIRING THIS REFUSES is an rc478 `.so` under rc479 Python. Both
+#        load, neither errors, and the stale library simply ANSWERS a token
+#        this release refuses — the exact silent-divergence shape v21 and v26
+#        bumped for, one projection serving a rounded value where the other
+#        raises.
+#
+#        WHY the C node does not return the rational itself: no C value layer
+#        in this library can hold one (`dv_value_t` and `srmech_mval_t` both
+#        carry `double`), so the exact reading lives in the Python projection
+#        and this binding DECLINES a float document to it — the decline
+#        contract that already ships, now with a CARRIER category beside the
+#        precision one rc397 removed.
+#
+#        The five zero spellings are unaffected: an all-zero significand names
+#        zero whatever its exponent says, so `0e999999999` and its siblings
+#        still answer OK with the sign preserved, and `0e` / `0eX` still answer
+#        BAD_INPUT. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
+#
 # v29 (rc477, `#T1188`) — THE AXIS IS THE NEAREST WORD, AND THE SCALE IS EXACT.
 #        SERVED VALUES MOVE (v21 / v26 / v27 / v28's ground), and nothing else.
 #        Two halves, and neither is the one the prose at each site named.
@@ -365,7 +393,7 @@ from typing import Optional
 #        the stale library just serves the misrounded root, and the glue here
 #        rebuilds it into an exact-looking ``Q``. Silent wrong value, no other
 #        symptom, which is the shape v21 and v26 bumped for.
-EXPECTED_ABI_VERSION: int = 29
+EXPECTED_ABI_VERSION: int = 30
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-

@@ -854,11 +854,22 @@ static srmech_status_t toml_f64_bignum(const char *dig, int ndig, int E,
 }
 
 /* Parse the exponent tail (chars after 'e'/'E') to a signed int, saturating
- * the magnitude so the range clamp in the caller decides inf/zero. */
-static srmech_status_t toml_f64_scan_exp(const char *s, int *pexpo)
+ * the magnitude so the range clamp in the caller decides inf/zero.
+ *
+ * rc479 (#T1188): `*pover` reports that the magnitude EXCEEDED
+ * SRMECH_DEC_MAX_DIGITS, and this function still returns SRMECH_OK for it.
+ * That split is the whole point. The refusal cannot live here: this runs
+ * BEFORE the caller's all-zero collapse, and `0e999999999` is a legal token
+ * naming ZERO that every reader accepts today — a compiled variant with the
+ * bound moved into this function turned `0e999999999`, `0e-999999999`,
+ * `-0e999999999` and `0.0e999999999` into SRMECH_ERR_LIMIT. Full SYNTACTIC
+ * validation stays here (`0e` / `0eX` -> SRMECH_ERR_BAD_INPUT, unchanged);
+ * the caller refuses only when the significand is non-zero. */
+static srmech_status_t toml_f64_scan_exp(const char *s, int *pexpo, int *pover)
 {
-    int j = 0, esign = 1, expo = 0, seen = 0;
+    int j = 0, esign = 1, expo = 0, seen = 0, over = 0;
     assert(s != NULL && pexpo != NULL);
+    assert(pover != NULL);
     if (s[0] == '+' || s[0] == '-') {
         esign = (s[0] == '-') ? -1 : 1;
         j = 1;
@@ -866,12 +877,14 @@ static srmech_status_t toml_f64_scan_exp(const char *s, int *pexpo)
     for (; s[j] != '\0'; j++) {
         if (s[j] < '0' || s[j] > '9') { return SRMECH_ERR_BAD_INPUT; }
         expo = expo * 10 + (s[j] - '0');
+        if (expo > SRMECH_DEC_MAX_DIGITS) { over = 1; }
         if (expo > 100000) { expo = 100000; }
         seen = 1;
     }
     if (seen == 0) { return SRMECH_ERR_BAD_INPUT; }
     assert(expo >= 0 && expo <= 100000);
     *pexpo = esign * expo;
+    *pover = over;
     return SRMECH_OK;
 }
 
@@ -884,7 +897,7 @@ static srmech_status_t toml_f64_scan(const char *buf, char *dig, int dcap,
 {
     char raw[64];
     int nraw = 0, frac = 0, seen = 0, dot = 0, k = 0, had_exp = 0;
-    int lo, hi, i, E;
+    int lo, hi, i, E, over = 0, nd;
     srmech_status_t st;
     assert(buf != NULL && dig != NULL && pndig != NULL);
     assert(pE != NULL && pneg != NULL && dcap >= 64);
@@ -911,7 +924,7 @@ static srmech_status_t toml_f64_scan(const char *buf, char *dig, int dcap,
     E = -frac;
     if (had_exp) {
         int expo = 0;
-        st = toml_f64_scan_exp(buf + k, &expo);
+        st = toml_f64_scan_exp(buf + k, &expo, &over);
         if (st != SRMECH_OK) { return st; }
         E += expo;
     }
@@ -921,11 +934,27 @@ static srmech_status_t toml_f64_scan(const char *buf, char *dig, int dcap,
     while (hi >= lo && raw[hi] == '0') { hi--; }
     if (hi < lo) { *pndig = 0; *pE = 0; return SRMECH_OK; }   /* all zero */
     E += (nraw - 1 - hi);                                      /* trailing 0s */
-    /* rc404 (`#T1069`): a FIXED digit capacity -> LIMIT. The condition itself
-     * is untouched — rc397 red'd the pedantic build here when `dcap` became
-     * assert-only under -DNDEBUG, so this stays a LIVE bound (not assert-only)
-     * and `dcap` keeps a non-assert reader on every build. */
-    if (hi - lo + 1 > dcap) { return SRMECH_ERR_LIMIT; }        /* live dcap bound (not assert-only) */
+    /* rc479 (#T1188) — CONTRACT A's digit bound, and it sits HERE: after the
+     * all-zero collapse above (so `0e999999999` still answers zero) and after
+     * the exponent's own syntax check (so `0e` / `0eX` still answer
+     * BAD_INPUT). The counts are the closed forms over the SCAN form, exact
+     * because `dig` carries no leading zero: the numerator has
+     * `ndig + max(E, 0)` digits and the denominator `1 + max(-E, 0)`. The
+     * `over` flag covers an exponent whose magnitude was saturated before it
+     * could be counted. */
+    nd = hi - lo + 1;
+    if (over != 0) { return SRMECH_ERR_LIMIT; }
+    if (E > 0 && nd > SRMECH_DEC_MAX_DIGITS - E) { return SRMECH_ERR_LIMIT; }
+    if (E <= 0 && -E > SRMECH_DEC_MAX_DIGITS - 1) { return SRMECH_ERR_LIMIT; }
+    if (nd > SRMECH_DEC_MAX_DIGITS) { return SRMECH_ERR_LIMIT; }
+    /* rc404 (`#T1069`): a FIXED digit capacity -> LIMIT. rc479 tightened `>`
+     * to `>=`: the old form admitted `ndig == dcap == 64` while BOTH callers
+     * assert `ndig < 64`, a latent off-by-one unreachable through today's
+     * 63-char token cap and live the moment the staging widens. It stays a
+     * LIVE bound (not assert-only) — rc397 red'd the pedantic build here when
+     * `dcap` became assert-only under -DNDEBUG, so `dcap` keeps a non-assert
+     * reader on every build. */
+    if (nd >= dcap) { return SRMECH_ERR_LIMIT; }        /* live dcap bound (not assert-only) */
     for (i = 0; i <= hi - lo; i++) { dig[i] = raw[lo + i]; }
     *pndig = hi - lo + 1;
     *pE = E;
