@@ -13,6 +13,7 @@ from pathlib import Path
 
 import pytest
 
+from srmech.math.q import Q            # rc479 (`#T1188`): contract A's carrier
 from srmech.amsc.format import (
     MANDATORY_ATTESTATION_FIELDS,
     MANDATORY_RENDERING_FIELDS,
@@ -87,9 +88,55 @@ def test_mandatory_rendering_fields_count() -> None:
 
 
 def test_mpr_record_round_trip_through_json_line() -> None:
+    """The NDJSON round trip, RESTATED for contract A (rc479, `#T1188`).
+
+    ⚠️ **It used to read ``from_json_line(to_json_line(r)) == r`` and that is
+    now false BY DESIGN, on the one axis the whole rc is about.** The fixture
+    holds Python ``float``s (``19.475``); ``to_json_line`` writes the decimal
+    text ``19.475``; and the reader now returns the exact rational that TEXT
+    names, ``Q(779, 40)`` — which is not the double ``19.475``, because the
+    double is ``5482716835708109 / 2**48``. Asserting the old equality would
+    be pinning the rounding the contract removes.
+
+    Four clauses replace it, and together they are stronger than the equality
+    they retire:
+
+    1. the read-back leaf is EXACT and is the decimal the line spells;
+    2. it PROJECTS to the bit-identical double the record held, so no float
+       consumer moves;
+    3. the WRITE is byte-stable — re-serialising the read-back record gives
+       the identical line, which is what keeps every committed
+       ``response_sha256`` valid;
+    4. the round trip is an exact FIXED POINT from the second pass onward.
+    """
+    import struct
+
     record = _valid_record()
     line = record.to_json_line()
-    assert MPRRecord.from_json_line(line) == record
+    back = MPRRecord.from_json_line(line)
+
+    # (1) exact, and the decimal the line spells
+    lat = back.data["latitude_deg"]
+    assert isinstance(lat, Q), f"contract A: exact leaf, got {type(lat).__name__}"
+    assert lat.numerator * 1000 == 19475 * lat.denominator
+
+    # (2) projects to the bit-identical double the record held
+    for key in ("latitude_deg", "longitude_deg"):
+        assert struct.pack(">d", float(back.data[key])) == \
+               struct.pack(">d", record.data[key]), key
+
+    # (3) byte-stable write — the digest surface does not move
+    assert back.to_json_line() == line
+
+    # (4) an exact fixed point from the second pass
+    assert MPRRecord.from_json_line(back.to_json_line()) == back
+
+    # the non-numeric fields are untouched
+    assert back.mpr_version == record.mpr_version
+    assert back.data["name"] == record.data["name"]
+    assert back.data_schema_id == record.data_schema_id
+    assert back.attestation == record.attestation
+    assert back.rendering == record.rendering
 
 
 def test_validate_accepts_valid_record() -> None:

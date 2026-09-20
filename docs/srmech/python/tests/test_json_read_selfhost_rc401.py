@@ -26,6 +26,28 @@ Three properties are load-bearing and each has its own test:
    ``_native_declined`` observes ``json_loads_c(...) is None`` and never named
    the mechanism. What they pin is that the DECLINE still happens; a guard that
    stopped firing would otherwise be invisible.
+
+⚠️ **rc479 (`#T1188`) — THE SELF-HOSTING CONTRACT IS HOOK-RELATIVE, and this
+module's oracle had to say so.** Contract A installs
+:func:`srmech.math.q.parse_float_exact` as the front door's ``parse_float=``
+default, so ``srmech._json.loads('0.1')`` is ``Q(1, 10)`` and a BARE
+``json.loads('0.1')`` is the double ``0.1``. Comparing the two is then
+comparing a hook against no hook, which measures the hook rather than the
+self-host. Every oracle below therefore passes the SAME ``parse_float`` the
+front door installs — ``json.loads(text, parse_float=parse_float_exact)`` —
+which is the property that was always meant: *the front door equals the
+backend GIVEN THE SAME READER*. It is a RESTATEMENT, not a weakening; the
+value equality is still exact, still typed, still by ``repr``, and the
+malformed-input and decline halves are untouched.
+
+A third property joins the three above, and it is the one a float consumer
+cares about:
+
+4. **The exact reading PROJECTS to the double the old reading returned.** For
+   every float literal, ``float(srmech._json.loads(lit))`` is bit-identical to
+   ``json.loads(lit)``. That is the certificate that replaced
+   ``assert isinstance(parsed, float)`` — a stronger claim than the isinstance
+   it retired, because it pins the VALUE rather than the carrier.
 """
 
 from __future__ import annotations
@@ -38,10 +60,22 @@ import struct
 import pytest
 
 from srmech import _json, _native
+from srmech.math.q import Q, parse_float_exact
 
 from tests._native_gate import require_native
 
 PY_DIR = pathlib.Path(__file__).resolve().parent.parent
+
+
+def _oracle(text):
+    """The stdlib parse under the SAME reader the front door installs.
+
+    rc479 (`#T1188`): this is what makes the comparison a self-hosting check
+    rather than a measurement of contract A. Bare ``json.loads`` is the
+    DOUBLE projection and is used deliberately — and only — where that is the
+    property under test (``_assert_float_certificate``).
+    """
+    return json.loads(text, parse_float=parse_float_exact)
 
 
 # --------------------------------------------------------------------------
@@ -58,6 +92,10 @@ def _typed_shape(obj):
     if isinstance(obj, float):
         # NaN is not self-equal, so compare the exact IEEE-754 bit pattern.
         return ("float", struct.pack(">d", obj))
+    if isinstance(obj, Q):
+        # rc479: the exact carrier compares by its REDUCED integer pair, so a
+        # Q never compares equal to a float of the same value by accident.
+        return ("Q", obj.numerator, obj.denominator)
     if isinstance(obj, int):
         return ("int", obj)
     return (type(obj).__name__, obj)
@@ -66,7 +104,7 @@ def _typed_shape(obj):
 def _assert_parity(text, label):
     """srmech._json.loads and json.loads agree — on the value or on the raise."""
     try:
-        want = json.loads(text)
+        want = _oracle(text)
         want_exc = None
     except Exception as exc:                      # noqa: BLE001 - parity is the point
         want, want_exc = None, type(exc)
@@ -262,20 +300,60 @@ FLOAT_LITERALS = [
 
 @pytest.mark.parametrize("lit", FLOAT_LITERALS)
 def test_float_bit_exact(lit):
-    """Floats must match to the BIT, not to a tolerance."""
+    """The exact reading PROJECTS to the bit-identical double — a CERTIFICATE.
+
+    ⚠️ **rc479 (`#T1188`) RESTATED this, and it is stronger than what it
+    replaced.** Through rc478 it asserted ``isinstance(got, float)`` and then
+    compared the bits — a test of the CARRIER first and the value second.
+    Under contract A the front door returns the exact rational the literal
+    already names, so the isinstance is false by design and asserting it would
+    be pinning the defect the rc removes.
+
+    What is pinned instead is the invariant a float consumer actually depends
+    on, in three clauses:
+
+    * the reading is EXACT — a ``Q``, not a double;
+    * it PROJECTS to the bit-identical double (``float(Q)`` vs
+      ``json.loads(lit)``), so every existing float consumer is unmoved;
+    * the exactness is decided by INTEGER cross-multiplication against the
+      literal's own decimal expansion, never by a float comparison.
+
+    The bare ``json.loads`` here is deliberate and is the ONLY place in this
+    module that uses it: the double projection IS the property under test.
+    """
     got = _json.loads(lit)
-    want = json.loads(lit)
-    assert isinstance(got, float) and isinstance(want, float)
-    assert struct.pack(">d", got) == struct.pack(">d", want), (
-        f"{lit}: {got!r} != {want!r} at the bit level")
+    want = json.loads(lit)                     # the DOUBLE projection, on purpose
+    assert isinstance(got, Q), (
+        f"{lit}: contract A must read a decimal literal exactly; got "
+        f"{type(got).__name__}")
+    assert isinstance(want, float)
+    assert struct.pack(">d", float(got)) == struct.pack(">d", want), (
+        f"{lit}: float({got!r}) != {want!r} at the bit level")
+    # and the exact value is the decimal the literal spells — integers only
+    sign = -1 if lit.lstrip().startswith("-") else 1
+    mant, _e, exp = lit.lower().partition("e")
+    ip, _d, fp = mant.lstrip("+-").partition(".")
+    digits = int((ip + fp) or "0")
+    e = (int(exp) if exp else 0) - len(fp)
+    num, den = (digits * 10 ** e, 1) if e >= 0 else (digits, 10 ** (-e))
+    assert got.numerator * den == sign * num * got.denominator, (
+        f"{lit}: {got!r} is not the exact decimal the literal spells")
 
 
 def test_float_array_bit_exact():
-    """A whole array of awkward floats, in one document, through the C parser."""
+    """A whole array of awkward floats, in one document, through the C parser.
+
+    rc479 (`#T1188`): the same certificate as :func:`test_float_bit_exact`, at
+    scale — 1004 leaves, every one read EXACTLY and every one projecting to the
+    bit-identical double the writer held. The ``json.dumps`` round trip is what
+    makes it a real test: ``repr`` is the shortest text that re-reads to the
+    same double, so the exact rational of that text projects back to it.
+    """
     vals = [i * 0.1 for i in range(1000)] + [1 / 3, 2 / 3, math.pi, math.e]
     text = json.dumps(vals)
     got = _json.loads(text)
-    assert [struct.pack(">d", v) for v in got] == \
+    assert all(isinstance(v, Q) for v in got), "contract A: exact leaves"
+    assert [struct.pack(">d", float(v)) for v in got] == \
            [struct.pack(">d", v) for v in vals]
 
 
@@ -449,7 +527,7 @@ def test_pure_floor_is_reachable_and_correct():
     proves a pure / Pyodide install still reads every document correctly.
     """
     for _label, text in VALUE_CASES:
-        assert _typed_shape(_json.loads(text)) == _typed_shape(json.loads(text))
+        assert _typed_shape(_json.loads(text)) == _typed_shape(_oracle(text))
 
 
 # --------------------------------------------------------------------------

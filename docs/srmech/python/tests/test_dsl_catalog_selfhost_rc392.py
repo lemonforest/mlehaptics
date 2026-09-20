@@ -40,6 +40,7 @@ import srmech
 from srmech import _native
 from srmech import _toml as srmech_toml_frontdoor
 from srmech.dsl import _catalog, _class_catalog
+from srmech.math.q import parse_float_exact   # rc479 (`#T1188`): contract A
 from tests._native_gate import require_native
 
 if sys.version_info >= (3, 11):
@@ -69,12 +70,26 @@ def _strip(desc: dict) -> dict:
     return {k: v for k, v in desc.items() if k not in _SYNTHETIC}
 
 
+def _oracle(text: str) -> dict:
+    """The stdlib parse under the SAME reader the front door installs.
+
+    ⚠️ rc479 (`#T1188`): the self-hosting contract is HOOK-RELATIVE. Contract A
+    makes ``srmech._toml.loads`` read a decimal literal as the exact rational it
+    names, so a BARE ``tomllib`` oracle would be comparing a hook against no
+    hook — measuring contract A rather than the self-host. The property this
+    module was always about is *the front door equals the backend GIVEN THE
+    SAME READER*, and that is what is compared now. Restated, not weakened:
+    the equality is still descriptor-for-descriptor and still byte-typed.
+    """
+    return _stdlib_toml.loads(text, parse_float=parse_float_exact)
+
+
 def _expected_cascade() -> dict:
-    """The cascade registry built the loader's way but via a DIRECT ``tomllib``
-    parse — keyed by ``[cascade].name``."""
+    """The cascade registry built the loader's way but via a DIRECT stdlib
+    parse under the same reader — keyed by ``[cascade].name``."""
     out = {}
     for p in sorted(_catalog.CATALOG_DIR.glob("*.toml")):
-        doc = _stdlib_toml.loads(_read(p))
+        doc = _oracle(_read(p))
         out[doc["cascade"]["name"]] = doc
     return out
 
@@ -82,7 +97,7 @@ def _expected_cascade() -> dict:
 def _expected_class() -> dict:
     out = {}
     for p in sorted(_class_catalog.CLASS_CATALOG_DIR.glob("*.toml")):
-        doc = _stdlib_toml.loads(_read(p))
+        doc = _oracle(_read(p))
         out[doc["class"]["name"]] = doc
     return out
 
