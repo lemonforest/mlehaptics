@@ -306,36 +306,8 @@ def test_a_mixed_width_two_sided_axis_pair_RAISES_naming_the_compositum() -> Non
 # (7) the sieve, as a RULE
 # --------------------------------------------------------------------------
 
-@pytest.mark.parametrize("name,axis_k,summand",
-                         [("i", 1, "q"), ("ijk", 3, "q"),
-                          ("diagonal", 7, "o")])
-def test_the_admission_rule_is_the_lcm_sieve_not_a_cap(name, axis_k,
-                                                       summand) -> None:
-    """Accept/refuse agrees with
-    ``cyclotomic_degree(lcm(n, base)) <= MAX_CYCLOTOMIC_DEGREE`` at EVERY ``n``
-    in 1..128 — the rule, not an endpoint.
-
-    Fails on any cap-shaped implementation, and fails specifically if the cap
-    check was pushed down into ``_turn_scalars``, which carries no guard of its
-    own (MEASURED: ``_turn_scalars(1, 449, 1, 1)`` answers happily at degree
-    896, so moving the check inward leaves NO guard at all).
-
-    rc478 (`#T1188`) — TWO changes, and the second is the load-bearing one.
-    The predicate moved from the field INDEX to its DEGREE; and the
-    parametrisation gained ``("diagonal", 7)``, the octonion ``1/√7`` axis,
-    which through rc477 this sweep never walked. That is the axis that carries
-    the refusals: at ``φ <= 888`` axes 1 and 3 admit **all** 128 lengths, so
-    without the third arm the row is a sweep over a set with no refusal in it
-    — an instrument that could not return otherwise. On the diagonal arm 114
-    of 128 are admitted and **14** refuse, the first at ``n = 79``.
-
-    ⚠️ **The diagonal arm is the expensive one, and deliberately so.** A
-    refusal is arithmetic and costs ~0.5 ms, but each of its 114 ADMITTED rows
-    builds a real ``1/√7`` field, some of degree 888. MEASURED at rc478: this
-    whole file went from seconds to **529 s** when the arm was added. That is
-    the price of sweeping the axis that carries the refusals; the alternative
-    is a green sweep over a set with no refusal in it.
-    """
+def _probe(name: str, summand: str):
+    """The public op under test, as a one-argument callable over ``n``."""
     if summand == "q":
         mu = qdft_resolve_mu(name)
 
@@ -347,31 +319,131 @@ def test_the_admission_rule_is_the_lcm_sieve_not_a_cap(name, axis_k,
         def call(n):
             return odft_summand([[0] * 8] * 2, 1, 1, n, "left",
                                 "left_associated", -1, mu, mu)
+    return call
 
-    base = AXIS_BASE[axis_k]
-    disagreements = []
-    refused = []
-    for n in range(1, 129):
-        index = base * n // gcd(n, base)
-        want = _qalg._cyclotomic_degree(index) <= _qalg.MAX_CYCLOTOMIC_DEGREE
+
+def _rule(n: int, axis_k: int) -> bool:
+    """The admission RULE, evaluated without building anything."""
+    index = AXIS_BASE[axis_k] * n // gcd(n, AXIS_BASE[axis_k])
+    return _qalg._field_too_big(index) is None
+
+
+def _disagreements(call, axis_k, ns, rule=_rule):
+    """Rows where the PUBLIC OP and ``rule`` differ. The shared body of the
+    routing row below and of its planted-mutation control, so the control
+    exercises the same code the assertion does."""
+    out = []
+    for n in ns:
+        index = AXIS_BASE[axis_k] * n // gcd(n, AXIS_BASE[axis_k])
+        want = rule(n, axis_k)
         try:
             call(n)
             got = True
         except ValueError:
             got = False
         if got != want:
-            disagreements.append((n, index, want, got))
-        if not got:
-            refused.append(n)
-    assert not disagreements, (
-        f"axis_k={axis_k} admission is not the degree sieve at "
-        f"{disagreements[:6]}")
-    # the sweep must be able to return BOTH answers on the axis that has both
+            out.append((n, index, want, got))
+    return out
+
+
+@pytest.mark.parametrize("axis_k,refused", [
+    (1, []),
+    (3, []),
+    (7, [79, 83, 89, 97, 101, 103, 107, 109, 113, 115, 121, 123, 125, 127]),
+])
+def test_the_admission_rule_is_the_degree_sieve_over_every_n(axis_k,
+                                                             refused) -> None:
+    """THE RULE, swept EXHAUSTIVELY over ``n`` in 1..128 on all three axes —
+    and it costs milliseconds, because it builds nothing.
+
+    ``_field_too_big`` is the ONE helper all six admission guards route
+    through since rc478 (`#T1188`), so sweeping it is sweeping the rule
+    itself. The companion row below proves the public ops actually reach it;
+    together they say what one exhaustive op-level sweep used to say, for
+    1/17th of the time (§ the docstring of that row).
+
+    Does NOT prove any op calls this helper — that is the next row's job.
+    """
+    live = [n for n in range(1, 129) if not _rule(n, axis_k)]
+    assert live == refused, (axis_k, live)
+    for n in range(1, 129):
+        index = AXIS_BASE[axis_k] * n // gcd(n, AXIS_BASE[axis_k])
+        degree = _qalg._cyclotomic_degree(index)
+        assert _rule(n, axis_k) == (degree <= _qalg.MAX_CYCLOTOMIC_DEGREE), n
+
+
+@pytest.mark.parametrize("name,axis_k,summand",
+                         [("i", 1, "q"), ("ijk", 3, "q"),
+                          ("diagonal", 7, "o")])
+def test_the_public_ops_route_through_that_rule(name, axis_k,
+                                                summand) -> None:
+    """The PUBLIC op agrees with the rule at every BOUNDARY in 1..128, plus a
+    structured interior spread — the routing half of the sweep above.
+
+    **Why this is not the full 1..128 op-level sweep it replaces, stated as a
+    measurement.** MEASURED at rc478 (`#T1188`): that sweep cost **9.1 s** on
+    ``axis_k = 1``, **44.1 s** on ``axis_k = 3`` and **340.4 s** on
+    ``axis_k = 7`` — 394 s in a 529 s file — and the shape of the cost is
+    lopsided in a way that makes the trade obvious. The 14 diagonal REFUSALS
+    cost **8.6 ms between them**, because a refusal is arithmetic; the 114
+    ADMISSIONS cost the rest, because each builds a real ``1/√7`` field, and
+    the twelve dearest are **73.6 %** of the arm on their own. So the
+    exhaustive form was paying ~320 s to re-derive, at interior ``n``, a rule
+    the row above now checks at **every** ``n`` for milliseconds.
+
+    The set tested here is DERIVED from the rule, never a literal: every
+    refusal, both of its neighbours, and a fixed interior spread. On
+    ``axis_k = 7`` that is 36 rows at **19.8 s** — a **17.2×** saving with
+    both verdicts still in the set.
+
+    **What the full sweep covered that this does not:** op-level agreement at
+    the ~92 interior diagonal ``n`` that neither refuse nor sit beside a
+    refusal. An implementation that refused one of those would be caught by
+    neither this row nor the rule row. That residual is bounded by
+    construction — all six guards make ONE unconditional
+    ``_field_too_big(index)`` call, and ``_turn_field_index`` is pure
+    arithmetic swept above — but it is a residual and not a proof, so it is
+    named rather than left implicit.
+
+    Does NOT prove the op computes the right VALUE where it admits; that is
+    the exactness oracle in ``test_cyclotomic_degree_cap_rc478.py``.
+    """
+    refusals = [n for n in range(1, 129) if not _rule(n, axis_k)]
+    neighbours = {m for n in refusals for m in (n - 1, n + 1)
+                  if 1 <= m <= 128}
+    interior = {1, 2, 3, 4, 5, 6, 7, 8, 63, 64, 65, 126, 127, 128}
+    ns = sorted(set(refusals) | neighbours | interior)
+
+    call = _probe(name, summand)
+    assert not _disagreements(call, axis_k, ns), axis_k
+
+    # the row must be able to return BOTH answers where both exist
     if axis_k == 7:
-        assert refused == [79, 83, 89, 97, 101, 103, 107, 109, 113, 115, 121,
-                           123, 125, 127], refused
+        assert refusals, "the diagonal axis carries every refusal in 1..128"
+        assert [n for n in ns if _rule(n, axis_k)], "no admission tested"
     else:
-        assert refused == [], refused
+        assert refusals == []
+
+
+def test_the_routing_row_goes_RED_when_the_op_and_the_rule_disagree() -> None:
+    """The control for the row above: a PLANTED disagreement must be found.
+
+    Without this, "no disagreements" is unfalsifiable — a comparison over an
+    empty set, or against a rule that simply echoes the op, would read green
+    forever. Here the rule is mutated at ONE ``n`` that the op admits, and the
+    shared comparison body must report exactly that row.
+    """
+    call = _probe("diagonal", "o")
+    ns = [78, 79, 80]
+
+    def lying_rule(n, axis_k):
+        return False if n == 80 else _rule(n, axis_k)
+
+    found = _disagreements(call, 7, ns, rule=lying_rule)
+    assert [row[0] for row in found] == [80], found
+    # ...and with the real rule the same set is clean, so the plant is what
+    # moved it and not the set
+    assert not _disagreements(call, 7, ns)
 
 
 def test_the_sieve_is_not_an_interval_in_either_direction() -> None:

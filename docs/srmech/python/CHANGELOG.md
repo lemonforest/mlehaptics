@@ -131,7 +131,17 @@ The repair also made the six guards share one helper (`_field_too_big`), so thei
 
 ### THE SWEEP NOW WALKS THE AXIS THAT CARRIES THE REFUSALS
 
-`tests/test_exact_axis_summand_rc469.py`'s admission sweep was parametrised over `axis_k ∈ {1, 3}` only. At `φ ≤ 888` those two axes admit **all 128** lengths, so without a third arm the row would be a sweep over a set with **no refusal in it** — an instrument that could not return otherwise. The parametrisation gains `("diagonal", 7)`, where 114 of 128 are admitted and the refused set is asserted exactly: `{79, 83, 89, 97, 101, 103, 107, 109, 113, 115, 121, 123, 125, 127}`. **MEASURED COST, stated rather than discovered in CI: that file goes from seconds to 529 s**, because each of the 114 admitted rows builds a real `1/√7` field. That is the price of sweeping the axis that carries the 45-second row.
+`tests/test_exact_axis_summand_rc469.py`'s admission sweep was parametrised over `axis_k ∈ {1, 3}` only. At `φ ≤ 888` those two axes admit **all 128** lengths, so without a third arm the row would be a sweep over a set with **no refusal in it** — an instrument that could not return otherwise. It gains the `1/√7` axis, where 114 of 128 are admitted and the refused set is asserted exactly: `{79, 83, 89, 97, 101, 103, 107, 109, 113, 115, 121, 123, 125, 127}`.
+
+**The first form of that arm cost 529 s for the whole file, and the cost was lopsided in a way that made a better form obvious.** Measured per arm: `axis_k = 1` **9.1 s**, `axis_k = 3` **44.1 s**, `axis_k = 7` **340.4 s**. Inside the diagonal arm the 14 REFUSALS cost **8.6 ms between them** — a refusal is arithmetic — while the 114 ADMISSIONS cost the rest, the twelve dearest being **73.6 %** of the arm on their own. So ~320 s was being spent re-deriving, at interior `n`, a rule that can be checked another way.
+
+**It ships split in two, and the file now runs in 86 s — a 6.2× reduction with both halves stronger than the single form.**
+
+* **The RULE, EXHAUSTIVE over all 128 `n` on all three axes, for under 5 ms per axis** (below pytest's own 0.005 s reporting threshold). rc478 routes all six admission guards through ONE helper, `_field_too_big`, so sweeping that helper *is* sweeping the rule — and it builds nothing. The exact refused set is asserted per axis.
+* **The ROUTING, at every boundary plus a structured interior spread — `axis_k = 7` in 80.8 s, `axis_k = 3` in 4.5 s, `axis_k = 1` in 0.6 s.** The tested set is DERIVED from the rule, never a literal: every refusal, both of its neighbours, and a fixed spread (`1..8`, `63..65`, `126..128`).
+* **A planted-mutation control**, because "no disagreements" over a set is otherwise unfalsifiable: the rule is mutated at one admitted `n` and the *same* comparison body must report exactly that row, then come back clean against the real rule.
+
+**What the full sweep covered that this does not, stated rather than glossed:** op-level agreement at the ~92 interior diagonal `n` that neither refuse nor sit beside a refusal. That residual is bounded by construction — each guard makes one unconditional `_field_too_big(index)` call and `_turn_field_index` is pure arithmetic swept exhaustively above — but it is a residual, not a proof, and it is named in the test's own docstring.
 
 ### GATES — AND WHAT EACH ONE DOES NOT PROVE
 
