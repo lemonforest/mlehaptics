@@ -255,6 +255,7 @@ from srmech.introspect._writer import (
     emit_if_publishing as _emit,
 )
 from srmech import _json as _srmech_json
+from srmech.amsc.format import canonical_json_default as _canonical_default  # rc479
 
 
 def _describe_shape(value: Any) -> str:
@@ -635,8 +636,10 @@ class Chain:
         import json
         chain_dict = {"chain": {"name": self.name}, "stage": stage_list}
         try:
-            chain_json = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
-            input_json = json.dumps(input_desc, ensure_ascii=False).encode("utf-8")
+            chain_json = json.dumps(chain_dict, ensure_ascii=False,
+                                    default=_canonical_default).encode("utf-8")
+            input_json = json.dumps(input_desc, ensure_ascii=False,
+                                    default=_canonical_default).encode("utf-8")
         except (TypeError, ValueError):
             return _NATIVE_MISS
         ws_bytes = int(lib.srmech_dsl_chain_run_arena_bytes(

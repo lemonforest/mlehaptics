@@ -37,9 +37,38 @@ def _stdlib_backend():
     return _backend
 
 
+#: Contract A's reader, resolved ONCE and cached (rc479, `#T1188`).
+#:
+#: ``srmech.math.q`` imports ``srmech._native`` and the Class-N modules beneath
+#: it, so resolving the hook at module scope would make the TOML front door
+#: drag the whole math stack in at ``import srmech``. ``parse_float`` is called
+#: once per float literal and a descriptor can carry hundreds, so it is held in
+#: a module global rather than re-imported per literal.
+_PARSE_FLOAT = None
+
+
+def _exact_parse_float():
+    """The ``parse_float=`` callable the stdlib floor is given."""
+    global _PARSE_FLOAT
+    if _PARSE_FLOAT is None:
+        from .math.q import parse_float_exact
+        _PARSE_FLOAT = parse_float_exact
+    return _PARSE_FLOAT
+
+
 def _stdlib_loads(text: str) -> Dict[str, Any]:
-    """Parse via the stdlib tomllib (3.11+) / tomli backport (3.10)."""
-    return _stdlib_backend().loads(text)
+    """Parse via the stdlib tomllib (3.11+) / tomli backport (3.10).
+
+    **Contract A, rc479 (`#T1188`).** A TOML float literal is read as the
+    exact rational it already names — ``dead_band = 1e-12`` loads as
+    ``Q(1, 1000000000000)`` — via
+    :func:`srmech.math.q.parse_float_exact` installed as ``parse_float=``.
+    Unlike JSON, tomllib hands ``nan`` / ``inf`` / ``-inf`` to ``parse_float``
+    like any other token, and it hands the RAW token including underscores
+    (``1_000.000_1``); the reader carries both, returning the float for the
+    non-finite three (rule Z1) and stripping lexer-validated underscores.
+    """
+    return _stdlib_backend().loads(text, parse_float=_exact_parse_float())
 
 
 #: The exception :func:`loads` raises on a malformed document (rc407, `#T1076`).
@@ -61,6 +90,15 @@ def loads(text: str) -> Dict[str, Any]:
     an unsupported construct or syntax error), control rides the stdlib parse so
     the value — and any genuine ``TOMLDecodeError`` — is identical to the pure
     path.
+
+    ⚠️ **rc479 (`#T1188`) added a decline category, and it is what keeps the
+    projections equal.** Under contract A a decimal literal reads as an exact
+    ``Q``; ``srmech_toml.c`` yields a C ``double`` and no C value layer in this
+    library can hold a rational, so the native path now declines ANY document
+    carrying a float literal and the floor answers exactly. A native cell and a
+    pure cell return the same object for the same descriptor — which silently
+    returning doubles from C would not. It costs one wasted C parse on such a
+    document and never costs correctness.
     """
     from . import _native
 

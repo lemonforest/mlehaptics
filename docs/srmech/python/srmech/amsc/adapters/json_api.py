@@ -13,6 +13,7 @@ import json
 import sys
 from typing import Any, Dict, Iterator
 
+from ..._json import _exact_parse_float         # rc479 (`#T1188`): contract A
 from ..descriptor import Descriptor
 from . import _base
 
@@ -113,8 +114,15 @@ def _has_records(body: bytes, records_path: str) -> bool:
         # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is a
         # FETCHED external HTTP API response body — the least-trusted input in the tree.
         # The READ self-host covers srmech's own committed data, not third-party wire.
-        payload = json.loads(body.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
+        #
+        # rc479 (`#T1188`) — contract A without crossing it: the PARSER stays
+        # stdlib; only its `parse_float=` default moves, so a fetched decimal
+        # becomes the exact rational it already names before it is ever a row.
+        # An A1 refusal on a hostile literal raises ValueError, which this
+        # pagination probe treats as "no records" alongside the decode errors.
+        payload = json.loads(body.decode("utf-8"),
+                             parse_float=_exact_parse_float())
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
         return False
     cursor: Any = payload
     if records_path:
@@ -138,7 +146,12 @@ def parse(
     # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this is a
     # FETCHED external HTTP API response body — the least-trusted input in the tree.
     # The READ self-host covers srmech's own committed data, not third-party wire.
-    payload = json.loads(raw.decode("utf-8"))
+    #
+    # rc479 (`#T1188`) — contract A without crossing it: the PARSER stays
+    # stdlib; only its `parse_float=` default moves, so a fetched decimal is
+    # the exact rational it already names by the time it becomes a row.
+    payload = json.loads(raw.decode("utf-8"),
+                         parse_float=_exact_parse_float())
     parse_cfg = descriptor.parse
     records_path = str(parse_cfg.get("records_path", ""))
     cursor: Any = payload

@@ -35,6 +35,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from .. import bus as _bus
+from .._json import _exact_parse_float          # rc479 (`#T1188`): contract A
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -485,7 +486,11 @@ def run_send(args: argparse.Namespace) -> int:
         # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this parses
         # user-supplied CLI input (argv / a named file / stdin), not an srmech-authored
         # descriptor. The READ self-host deliberately stops at the process boundary.
-        event = json.loads(raw_json)
+        #
+        # rc479 (`#T1188`) — contract A without crossing it: the PARSER stays
+        # stdlib and only its `parse_float=` default moves, so a decimal in a
+        # published event is the exact rational it already names.
+        event = json.loads(raw_json, parse_float=_exact_parse_float())
     except json.JSONDecodeError as exc:
         print(f"invalid JSON: {exc}", file=sys.stderr)
         return 2

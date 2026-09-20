@@ -62,6 +62,7 @@ from .descriptor import (
     discover_descriptors,
 )
 from .format import MPRRecord, read_ndjson
+from .format import canonical_json_default as _canonical_default   # rc479 (`#T1188`)
 
 # srmech's own internal TOML front door (`#T907` slice 3). The descriptor read
 # behind ``_catalog_toml_dict`` (which feeds ``parse_catalog_chains`` over the
@@ -127,7 +128,8 @@ def _registered_roots_native(
     from .. import _native
     rp = root_path.encode("utf-8")
     rs = root_source.encode("utf-8")
-    ext = json.dumps(ext_pairs, ensure_ascii=False).encode("utf-8")
+    ext = json.dumps(ext_pairs, ensure_ascii=False,
+                     default=_canonical_default).encode("utf-8")
     ws_bytes = int(lib.srmech_catalog_registered_roots_arena_bytes(
         len(rp), len(rs), len(ext)))
     ws = (ctypes.c_char * ws_bytes)()
@@ -155,7 +157,8 @@ def _local_kernel_state_native(
         return None
     import ctypes
     from .. import _native
-    ps = json.dumps(per_source, ensure_ascii=False).encode("utf-8")
+    ps = json.dumps(per_source, ensure_ascii=False,
+                    default=_canonical_default).encode("utf-8")
     pb = _opt_bytes(path)
     ab = _opt_bytes(adapter_class)
     pl = len(pb) if pb is not None else 0
@@ -787,8 +790,12 @@ def _iter_literature_curated_records(
 
     for row_index, data in enumerate(_lc.parse(raw, descriptor), start=1):
         # Canonical-JSON encoding for byte-stable response_sha256.
+        # rc479 (`#T1188`): the default= keeps these bytes — and so the
+        # committed response_sha256 — in the DOUBLE projection contract A
+        # did not change. See amsc.format.canonical_json_default.
         row_bytes = json.dumps(
-            data, sort_keys=True, ensure_ascii=False
+            data, sort_keys=True, ensure_ascii=False,
+            default=_canonical_default
         ).encode("utf-8")
         row_sha256 = _sha256(row_bytes)
 
@@ -1373,7 +1380,8 @@ def _list_catalog_chains_native(
         "operator_chain": chains_raw,
     }
     try:
-        payload = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
+        payload = json.dumps(payload_obj, ensure_ascii=False,
+                             default=_canonical_default).encode("utf-8")
     except (TypeError, ValueError):
         return None
     ws_bytes = int(lib.srmech_catalog_list_chains_arena_bytes(len(payload)))
@@ -1425,8 +1433,10 @@ def _run_catalog_chain_native(
     if not ctx_ok:
         return _RUN_NATIVE_MISS
     try:
-        cat_json = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
-        ctx_json = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
+        cat_json = json.dumps(payload_obj, ensure_ascii=False,
+                              default=_canonical_default).encode("utf-8")
+        ctx_json = json.dumps(ctx, ensure_ascii=False,
+                              default=_canonical_default).encode("utf-8")
         name_b = chain_name.encode("utf-8")
     except (TypeError, ValueError):
         return _RUN_NATIVE_MISS

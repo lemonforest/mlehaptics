@@ -23,6 +23,8 @@ import sys
 from pathlib import Path
 from typing import Any, List, Optional
 
+from .._json import _exact_parse_float          # rc479 (`#T1188`): contract A
+
 
 def _safe_print(line: str) -> None:
     """Print ``line`` to stdout; replace characters the stdout encoding
@@ -188,7 +190,14 @@ def run_run(args: argparse.Namespace) -> int:
             # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this parses
             # user-supplied CLI input (argv / a named file / stdin), not an srmech-authored
             # descriptor. The READ self-host deliberately stops at the process boundary.
-            input_value = json.loads(args.input)
+            #
+            # rc479 (`#T1188`) — contract A does NOT cross that boundary: the
+            # PARSER stays stdlib and only its `parse_float=` default moves, so
+            # `--input '{"x": 0.1}'` reaches the chain as the exact Q(1, 10) the
+            # text already names. An A1 refusal raises ValueError rather than
+            # JSONDecodeError, so it is caught alongside it below.
+            input_value = json.loads(args.input,
+                                     parse_float=_exact_parse_float())
         except json.JSONDecodeError as exc:
             print(
                 f"srmech dsl run: --input is not valid JSON: {exc}",
@@ -210,12 +219,16 @@ def run_run(args: argparse.Namespace) -> int:
                     raw = raw.strip()
                     if not raw:
                         continue
-                    # stdlib json: same protocol-boundary decision as above.
-                    input_value.append(json.loads(raw))
+                    # stdlib json: same protocol-boundary decision as above,
+                    # and the same rc479 contract-A parse_float=.
+                    input_value.append(
+                        json.loads(raw, parse_float=_exact_parse_float()))
         else:
             with open(in_path, "rb") as fh:
-                # stdlib json: same protocol-boundary decision as above.
-                input_value = json.loads(fh.read())
+                # stdlib json: same protocol-boundary decision as above,
+                # and the same rc479 contract-A parse_float=.
+                input_value = json.loads(fh.read(),
+                                         parse_float=_exact_parse_float())
     else:
         print(
             "srmech dsl run: provide --input or --input-file",

@@ -33,6 +33,7 @@ import json
 import sys
 from typing import Callable, Optional, TextIO
 
+from .._json import _exact_parse_float          # rc479 (`#T1188`): contract A
 from ._server import MCPServer
 
 
@@ -54,7 +55,17 @@ def _read_one_request(stream: TextIO) -> Optional[dict]:
         # MCP JSON-RPC wire — untrusted external input on a published protocol contract.
         # Self-hosting it onto srmech._json is a separate decision with a different risk
         # profile from reading srmech's own descriptors, so the READ self-host stops here.
-        return json.loads(line)
+        #
+        # rc479 (`#T1188`) — CONTRACT A reaches this wire WITHOUT crossing that
+        # boundary. The PARSER stays stdlib; only its `parse_float=` default
+        # moves, so a caller's `{"dc_threshold": 0.1}` arrives as the exact
+        # Q(1, 10) it already names rather than as binary64's
+        # 3602879701896397/2**55. Measured: that one substitution flips
+        # classify_chirality_harmonic's verdict from 2 to 1 on a boundary
+        # EQUALITY, with a 0.5 control that does not move. An A1 refusal raises
+        # ValueError here, which the caller already surfaces as a JSON-RPC
+        # parse error.
+        return json.loads(line, parse_float=_exact_parse_float())
 
 
 def _write_one_response(stream: TextIO, response: dict) -> None:
