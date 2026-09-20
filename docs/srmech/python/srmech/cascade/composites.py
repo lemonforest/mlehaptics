@@ -593,6 +593,15 @@ def _try_native_autocorrelation(x):
         return None
     if not hasattr(_native.LIB, "srmech_autocorrelation_f64"):
         return None
+    # rc479 (`#T1188`) — G1, and it is NOT optional. With M1 the pure route
+    # keeps an exact sample exact; this C peer marshals doubles, so without
+    # this guard the native cell would answer 2e+20 where the pure cell
+    # answers 200000000000000000014 — the same call, the same version, a
+    # silent wrong answer in ONE projection. Measured: 6 of 12 cross-cell
+    # probes diverge without it, 0 with it. A non-float leaf declines to the
+    # Python route, which is exact; a float sample is untouched.
+    if any(not isinstance(v, float) for v in x):
+        return None
     try:
         xs = [float(v) for v in x]
     except (TypeError, ValueError):
@@ -653,9 +662,17 @@ def autocorrelation(x: Sequence[float]) -> List[float]:
     # sum well-conditioned — substrate-native, no stdlib math.fsum.
     # v0.9.0rc420 (`#T1114`): the per-(i, j) product is the PUBLIC op
     # correlation_product and this loop CALLS it — the declared chain in
-    # autocorrelation.toml and this fallback share one body (float() is
-    # idempotent on the pre-coerced xs, so the op order is unchanged).
-    xs = [float(v) for v in x]
+    # autocorrelation.toml and this fallback share one body.
+    #
+    # rc479 (`#T1188`) — M1. The entry cast was `[float(v) for v in x]`, and
+    # it was the ONE place the shipped op differed from its own declared
+    # chain: the chain has no such cast, so under contract A the chain
+    # returned the exact 200000000000000000014 where this op returned
+    # 2e+20. The carrier is the OPERAND'S, not the op's, so the sequence is
+    # taken as given and `correlation_product` (already carrier-aware since
+    # rc466) decides each product's rung. A float sample is byte-identical to
+    # every prior rc — measured, 0 of 313 float probes move.
+    xs = list(x)
     n = len(xs)
     if n == 0:
         return []
@@ -683,13 +700,21 @@ def correlation_product(x: Sequence, i: int, j: int) -> "float | Q":
     a :class:`~srmech.math.q.Q`; a float leaf keeps ``float(x[i]) * float(x[j])``,
     **accurate to round-off**. Through rc465 the body was the float form
     unconditionally, so ``correlation_product([3, 3002399751580331], 0, 1)``
-    returned ``9007199254740992.0`` for an exact product of ``2**53 + 1``. The
-    shipped :func:`autocorrelation` fallback still elects the float carrier
-    at ITS entry (``[float(v) for v in x]``); over an exact chain input the
-    declared chain is exact end to end (``compensated_sum`` returns ``Q`` for
-    ``Q`` input), and the C compose host's twin of this step is double-only —
-    the divergence is pinned by name in
-    ``tests/test_exact_carrier_drain_rc466.py``.
+    returned ``9007199254740992.0`` for an exact product of ``2**53 + 1``.
+
+    ⚠️ **rc479 (`#T1188`) removed the entry cast this paragraph used to
+    describe.** It read *"the shipped :func:`autocorrelation` fallback still
+    elects the float carrier at ITS entry (``[float(v) for v in x]``)"* — true
+    through rc478 and false now. That cast was the ONE place the shipped op
+    differed from its own declared chain, so under contract A the chain
+    returned the exact ``200000000000000000014`` where the op returned
+    ``2e+20`` and fifteen rc420 bit-identity proof cases went red. The entry
+    is now ``list(x)`` and this op decides each product's rung, exactly as
+    the chain always did; a float sample is byte-identical to every prior rc.
+    The C compose host's twin of this step is still double-only, and
+    :func:`autocorrelation` declines its C peer for a non-float leaf rather
+    than answering a different number from the pure route — the divergence is
+    pinned by name in ``tests/test_exact_carrier_drain_rc466.py``.
     """
     qi = _exact_scalar(x[i])
     qj = _exact_scalar(x[j])

@@ -155,6 +155,7 @@ from srmech.math.q import Q                          # `#T845`: exact float→�
 from srmech.math.rational import _q61_fxmul               # Q61 fixed-point multiply
 from .cayley_dickson import cd_basis_product as _cd_basis
 from .cayley_dickson import cd_mult, cd_promote, cd_project   # rc466: the exact peers
+from .leaves import vec_scale                 # rc479 (`#T1188`): the exit scale
 from srmech.math.q import exact_vector as _exact_vector      # rc466: the ONE exact reader
 from srmech.math.q import exact_scalar as _exact_scalar    # rc468 (`#T1188`): the exact axis wire
 from srmech.math import qalg as _qalg                      # rc468 (`#T1188`): the exact turn field
@@ -807,6 +808,43 @@ def hypercomplex_exp(theta=None, k_axes=None, *, turn=None) -> "tuple":
     return tuple(_Q(v, _Q61_ONE) for v in ints)
 
 
+def _exact_or_alg_vector(v):
+    """A flat operand as a list of EXACT leaves where at least one is a
+    :class:`~srmech.math.qalg.Qalg`, else ``None`` (rc479, `#T1188`).
+
+    ⚠️ **This closes a ROUND TRIP that raised.** :func:`qdft_summand` /
+    :func:`odft_summand` have returned ``Qalg`` leaves since rc468 whenever the
+    turn's cosine and scaled sine are not both rational — measured, every
+    ``n = 3`` transform does — and rc479's M2/M3 let those leaves reach the
+    public wrapper's OUTPUT for the first time. Handing that output straight
+    back in is the most ordinary thing a caller can do with a transform, and
+    through the first pass of this rc it raised ``TypeError: float() argument
+    must be a string or a real number, not 'Qalg'``, because
+    :func:`srmech.math.q.exact_vector` reads a ``Qalg`` as ``None`` (it has no
+    ``numerator``/``denominator``) and the float fallback then met it.
+
+    The exact route proper still runs first and is untouched; this is the arm
+    BELOW it. The ℍ↪𝕆 embedding here is written out rather than delegated to
+    :func:`srmech.cascade.cd_promote` / :func:`~srmech.cascade.cd_project`,
+    because those coerce every leaf through ``to_q`` and a ``Qalg`` is not a
+    ``Q`` — measured, both raise. What they do for this shape is a pure
+    ZERO-EXTENSION / TRUNCATION with no arithmetic in it, so writing it out
+    duplicates no logic.
+    """
+    out = []
+    saw_alg = False
+    for c in v:
+        if isinstance(c, _qalg.Qalg):
+            out.append(c)
+            saw_alg = True
+            continue
+        q = _exact_scalar(c)
+        if q is None:
+            return None
+        out.append(q)
+    return out if saw_alg else None
+
+
 def as_oct8(vec) -> "List[float] | List[Q]":
     """Class M: coerce a 4- or 8-component quaternion/octonion sample to an
     8-vector ``list[float]`` — a quaternion is zero-extended
@@ -832,6 +870,11 @@ def as_oct8(vec) -> "List[float] | List[Q]":
     exact = _exact_vector(vec)
     if exact is not None and len(exact) in (4, 8):
         return list(cd_promote(exact, 8))
+    alg = _exact_or_alg_vector(vec)       # rc479 (`#T1188`): the Qalg rung
+    if alg is not None and len(alg) in (4, 8):
+        if len(alg) == 4:
+            return alg + [_Q(0, 1)] * 4   # the same ℍ ↪ 𝕆 zero-extension
+        return alg
     a = [float(x) for x in vec]
     n = len(a)
     if n == 4:
@@ -1040,6 +1083,10 @@ def _try_native_odft(xs: List[List[float]], form: str, bracketing: str,
     n_pts = len(xs)
     if not _odft_native_ready() or n_pts >= _ODFT_N_MAX:
         return None
+    # rc479 (`#T1188`) — G3; the 8-wide peer of G2 above, same measurement,
+    # same reason. A non-float component declines to the composed route.
+    if any(not isinstance(c, float) for v in xs for c in v):
+        return None
     In = ctypes.c_double * (n_pts * _ODIM)
     Mu = ctypes.c_double * _ODIM
     c_x = In(*(c for v in xs for c in v))
@@ -1092,10 +1139,20 @@ def _odft_composed(xs: List[List[float]], form: str, bracketing: str,
             for i in range(_ODIM):
                 acc[i] += term[i]
         # rc477 (`#T1188`): `scale` is the EXACT Q(1, n), so the multiply
-        # carries no rounding and `float()` projects ONCE, at the wrapper's
-        # own exit -- each served element is the correctly rounded acc/n.
-        # The C peer divides by n_points there, one rounding, same value.
-        out.append([float(acc[i] * scale) for i in range(_ODIM)])
+        # carries no rounding and the projection happens ONCE, at the
+        # wrapper's own exit -- each served FLOAT element is the correctly
+        # rounded acc/n. The C peer divides by n_points there, one rounding,
+        # same value.
+        #
+        # rc479 (`#T1188`) -- M5. The `float(...)` was an UNCONDITIONAL
+        # projection, so an exact accumulator was rounded at the exit even
+        # when nothing upstream had rounded it. `vec_scale` is the registered
+        # op that already spells this exact rule -- it projects per element
+        # ONLY where that element's own leaf is a float -- and the declared
+        # chain names it, so the op and the chain now run the same step
+        # instead of two spellings of it. A float accumulator is byte-identical
+        # either way.
+        out.append(vec_scale(acc, scale))
     return out
 
 
@@ -1147,6 +1204,16 @@ def as_quat4(v) -> "List[float] | List[Q]":
                 "e4..e7 must be zero); use octonion_dft for full octonions"
             )
         return list(cd_project(exact))
+    alg = _exact_or_alg_vector(v)         # rc479 (`#T1188`): the Qalg rung
+    if alg is not None and len(alg) in (4, 8):
+        if len(alg) == 4:
+            return alg
+        if any(alg[i] != 0 for i in range(4, 8)):
+            raise ValueError(
+                "quaternion_dft requires quaternion samples (components "
+                "e4..e7 must be zero); use octonion_dft for full octonions"
+            )
+        return alg[:4]                    # the same 𝕆 ↠ ℍ realification
     a = [float(c) for c in v]
     n = len(a)
     if n == 4:
@@ -1527,6 +1594,15 @@ def _try_native_qdft(xs: List[List[float]], left: bool, inverse: bool,
     n_pts = len(xs)
     if not _qdft_native_ready() or n_pts >= _QDFT_N_MAX:
         return None
+    # rc479 (`#T1188`) — G2, and it is NOT optional. M2 keeps an exact sample
+    # exact through the composed route; this C peer marshals doubles, so
+    # without this guard the native cell would serve the rounded transform
+    # where the pure cell serves the exact one — the same call, the same
+    # version, a silent divergence between projections. Measured: 6 of 12
+    # cross-cell probes diverge without G1–G3, 0 with them. A non-float
+    # component declines to the composed route; a float sample is untouched.
+    if any(not isinstance(c, float) for v in xs for c in v):
+        return None
     In = ctypes.c_double * (n_pts * _QDIM)
     Mu = ctypes.c_double * _QDIM
     c_x = In(*(c for v in xs for c in v))
@@ -1573,10 +1649,17 @@ def _qdft_composed(xs: List[List[float]], left: bool, inverse: bool,
             for i in range(_QDIM):
                 acc[i] += term[i]
         # rc477 (`#T1188`): `scale` is the EXACT Q(1, n), so the multiply
-        # carries no rounding and `float()` projects ONCE, at the wrapper's
-        # own exit -- each served element is the correctly rounded acc/n.
-        # The C peer divides by n_points there, one rounding, same value.
-        out.append([float(acc[i] * scale) for i in range(_QDIM)])
+        # carries no rounding and the projection happens ONCE, at the
+        # wrapper's own exit -- each served FLOAT element is the correctly
+        # rounded acc/n. The C peer divides by n_points there, one rounding,
+        # same value.
+        #
+        # rc479 (`#T1188`) -- M4; see `_odft_composed` for the same step on
+        # the 8-wide rung. `vec_scale` projects per element only where that
+        # element's own leaf is a float, which is what the declared chain
+        # names; the unconditional `float(...)` rounded an exact accumulator
+        # nothing upstream had rounded. A float accumulator is byte-identical.
+        out.append(vec_scale(acc, scale))
     return out
 
 
@@ -1666,15 +1749,26 @@ def quaternion_dft(
                 "complex Mat"
             )
         x = x.tolist()
-    # rc466 (`#T1188`): this transform is FLOAT-DECLARED (``list[list[float]]``,
-    # a C-mirrored op order and a whole-transform C peer that marshals
-    # doubles), so the float request is made EXPLICITLY here — the
-    # ``autocorrelation`` precedent — rather than inherited from a coercion
-    # step that no longer rounds. Without it an exact sample would ride
-    # ``qdft_summand``'s exact rung into ``vec_add``'s float accumulator and
-    # ``Q.__radd__`` would turn the chain into Q-of-float arithmetic: a mixed
-    # carrier, which rc463 names as the defect rather than the cure.
-    xs = [as_quat4([float(c) for c in v]) for v in x]
+    # rc466 (`#T1188`) made the float request EXPLICITLY here — the
+    # ``autocorrelation`` precedent — on the ground that without it "an exact
+    # sample would ride ``qdft_summand``'s exact rung into ``vec_add``'s float
+    # accumulator and ``Q.__radd__`` would turn the chain into Q-of-float
+    # arithmetic: a mixed carrier, which rc463 names as the defect rather than
+    # the cure."
+    #
+    # ⚠️ rc479 (`#T1188`) — M2. **THAT PREMISE IS FALSE, and it was measured
+    # rather than argued.** On the rc478 BASELINE, before this rc moved a
+    # line, the DECLARED CHAIN already returns Q-of-float for every
+    # partially-exact sample shape — five of them, probed both routes in both
+    # cells. The entry cast never prevented the mixed carrier; it only stopped
+    # the WRAPPER from matching the chain that has it, which is how fifteen
+    # rc420 bit-identity proof cases went red under contract A. Removing it
+    # makes the op REPRODUCE the chain bit-for-bit rather than introducing a
+    # state the chain lacks, and the tree's own mixed-carrier detector
+    # (``test_silent_carrier_demotion_rc463``) is unchanged by it. The float
+    # request is now the OPERAND'S, per rc466's own carrier rule; the C peer
+    # keeps its float-only rung behind the ``_try_native_qdft`` guard below.
+    xs = [as_quat4(v) for v in x]
     mu_hat = qdft_resolve_mu(mu_axis)
     if not xs:
         return []
@@ -1807,10 +1901,11 @@ def octonion_dft(
                 "complex Mat"
             )
         x = x.tolist()
-    # rc466 (`#T1188`): the float request is explicit at THIS entry — see
-    # quaternion_dft for why (a float-declared transform over a coercion step
-    # that now carries an exact operand exactly).
-    xs = [as_oct8([float(c) for c in v]) for v in x]
+    # rc466 (`#T1188`) made the float request explicit at THIS entry — see
+    # quaternion_dft for why, and rc479 (`#T1188`) — M3 — for the measurement
+    # that falsified its premise. The carrier is the operand's; the C peer
+    # keeps its float-only rung behind the ``_try_native_odft`` guard.
+    xs = [as_oct8(v) for v in x]
     # One-resolution parity contract: μ̂ (and μ̂_r for the two-sided form) are
     # resolved exactly ONCE so the native and composed paths consume the
     # identical floats. The one-sided forms pass μ̂ twice (μ_r ignored).

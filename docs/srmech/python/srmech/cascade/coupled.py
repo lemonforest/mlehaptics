@@ -84,30 +84,54 @@ def coupled_wave(
         flip with ``theta``), and ``klein4_quadrant = (sign E, sign B)`` is
         the Klein-4 sector (each sign via Class-K ``pin_slot_at_zero``).
 
-    **Accuracy (rc472, `#T1188`).** ``theta`` is read at float64 resolution.
-    The op's door is ``assert isinstance(theta, (int, float))``, so a ``Q``
-    (or any other carrier) is REFUSED there and never reaches a cast —
-    measured, ``coupled_wave(Q(2**53 + 1, 1))`` raises ``AssertionError`` in
-    both cells; this paragraph admitted "or a ``Q``" to the next sentence
-    until the rc472 repair pass, a clause copied from ``winding_fold``'s
-    paragraph, where it IS true, without being re-checked against this
-    door. Past the door, after the Class-K sign branch (lossless on an
-    ``int``), the phase is handed to :func:`srmech.math.rational.sin` /
-    :func:`srmech.math.rational.cos`, each of which does ``x = float(x)`` at
-    its own door BEFORE its Q61 cascade runs. So an integer ``theta`` wider
-    than 53 significand bits is rounded to the nearest float64 first —
-    ``coupled_wave(2**53 + 1)`` == ``coupled_wave(2**53)`` — and the returned
-    legs are the Q61 rational sine and cosine of THAT float64: each a dyadic
-    ``Q`` whose denominator DIVIDES ``2**61`` (``Q`` reduces — measured ``1``
-    at ``theta = 0.0``, ``2**59`` / ``2**60`` at ``theta = 1.0``, ``2**61`` /
-    ``2**61`` at ``theta = 2.0``; over eleven angles the denominators seen are
-    ``1``, ``2**58``, ``2**59``, ``2**60``, ``2**61``; this said "denominator
-    ``2**61``" until the repair pass), a rational that is an approximation of
-    the trig value of the rounded angle and says nothing about the angle the
-    caller held. Measured: the rc472 census row ``coupled_wave::theta``,
-    DEMOTED in both cells.
+    **Accuracy — THE CARRIER IS THE OPERAND'S (rc479, `#T1188`), and this
+    paragraph said the opposite.** A ``float`` ``theta`` is read at float64
+    resolution; an EXACT ``theta`` is not, and has not been since rc474.
+
+    ⚠️ **Two claims here were FALSE when rc479 measured them, and both are
+    corrected rather than softened.** (1) The door read
+    ``assert isinstance(theta, (int, float))`` through rc478, so a ``Q`` was
+    REFUSED — true then, and rc479 WIDENS it, because contract A makes a
+    descriptor's ``theta = 1.5`` arrive as ``Q(3, 2)`` and refusing it would
+    turn a working call into an ``AssertionError`` on a value the caller never
+    changed. (2) This paragraph claimed ``coupled_wave(2**53 + 1) ==
+    coupled_wave(2**53)``, on the premise that
+    :func:`srmech.math.rational.sin` / :func:`~srmech.math.rational.cos` do
+    ``x = float(x)`` at their own door. **rc474 (`#T1188`) gave those two ops
+    an EXACT-OPERAND route ABOVE that cast** — an ``int`` / ``Q`` /
+    ``Fraction`` reaches the exact-rational octant reduction at
+    ``rational._EXACT_SCALAR_PRECISION`` (61) fractional bits — so the claim
+    had ALREADY been false for five releases when this rc read it. MEASURED at
+    rc478, pure cell: the two calls return DIFFERENT legs, with E-denominators
+    ``2**84`` and ``2**83`` against the Q61 route's ``2**61``. It is corrected
+    here rather than carried, and it was found by widening the door, not by a
+    gate.
+
+    So the live contract, by carrier:
+
+    * a ``float`` ``theta`` takes the **Q61** route, BIT-FOR-BIT as every prior
+      rc — each leg a dyadic ``Q`` whose denominator DIVIDES ``2**61``
+      (measured ``1`` at ``theta = 0.0``, ``2**59`` / ``2**60`` at ``1.0``,
+      ``2**61`` / ``2**61`` at ``2.0``; over eleven angles the denominators
+      seen are ``1``, ``2**58``, ``2**59``, ``2**60``, ``2**61``);
+    * an ``int`` or a ``Q`` ``theta`` takes the **exact-rational** route at 61
+      fractional bits, which is a DIFFERENT and finer number for the same
+      angle. Measured: ``coupled_wave(1.5)`` gives E-denominator ``2**61``
+      while ``coupled_wave(Q(3, 2))`` gives ``2**85``, for the same value
+      ``3/2``.
+
+    The Class-K sign branch between the door and the trig call is lossless on
+    both carriers. Either way the returned legs are an APPROXIMATION of the
+    trig value — a rational that says nothing about the angle the caller held
+    beyond the carrier they elected. The rc472 census row
+    ``coupled_wave::theta`` stays DEMOTED in both cells on the float carrier,
+    which is the row it was measured on.
     """
-    assert isinstance(theta, (int, float))
+    # rc479 (`#T1188`): the exact carrier is admitted at the door. `Q` is not
+    # an `int`/`float` subclass, so it needed naming here explicitly, and past
+    # the door it takes rational.sin/cos's EXACT route rather than the Q61 one
+    # — a different number for the same angle (see the Accuracy note above).
+    assert isinstance(theta, (int, float, _Q))
     assert len(components) == 2, "components must be an (E, B) pair"
     e_name, b_name = components[0], components[1]
     if e_name not in _COMPONENTS or b_name not in _COMPONENTS:
