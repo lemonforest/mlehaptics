@@ -1438,7 +1438,22 @@ from srmech.math.text import fold_marks, glyph_stream
 #: than the acceptance narrowed back, and a parameter's type string is frame
 #: text. `rows` is unmoved at 761 through all three.
 WITNESS_RC416 = (
-    "849100cbd9bfdf4a0c918125a6fb87833248cc245b801a39cbb8f8cb62f1b84f")
+    "e91cf43bee7223c7b1fb6ac283c3f1a2a65d7f0d897f8bd53f6b5bc9860cf73b")
+#: was: 849100cbd9bfdf4a0c918125a6fb87833248cc245b801a39cbb8f8cb62f1b84f
+#:      (rc477, before rc478 `#T1188` moved the cyclotomic admission criterion
+#:      from the field INDEX to the field DEGREE. A docstring and a ToolEntry
+#:      `returns`/`explanation` string are both frame text, and that rc
+#:      rewrites the cap prose on five modules plus five emitted strings —
+#:      every sieve count, every named refusal and the constant's own name
+#:      change — so this digest MUST move, and a digest that had NOT moved
+#:      would have been the finding. DETERMINISM re-verified at the re-pin,
+#:      because a witness that moved for the wrong reason is
+#:      indistinguishable from one that moved for the right one: three fresh
+#:      CPython 3.12.3 interpreters, two `_build_frames` calls each — six
+#:      computations, all `e91cf43b…5bc9860cf73b` — with NO library loaded,
+#:      so the value is not an artefact of native dispatch. `rows` is UNMOVED
+#:      at 761 (732 ops + 29 carriers), which is the check that says prose
+#:      moved and the corpus SHAPE did not.)
 #: was: 26fe42f1226c24dc9a3d7e5c27a6e235a95021622657d938109191be0c970d87 (rc477, before the curated `dft_scale` / `qdft_resolve_mu` worked blocks were RE-RUN; an `example` string is frame text too, so the digest moves on a re-captured value exactly as it does on a declared type)
 #: was: 11077f6de96977fedc6379741667896d91b57fb30cc84d303b607b0d35b8a8d7 (rc477, before `dft_scale` -> `Q` and `vec_scale` -> `list[float] | list[Q]`; a parameter's and a return's type string are both frame text)
 #: was: a826de664379ff976ea6967e887b5060139d33120d2957f6c4fa14371f7445e1 (rc476, before the declared-type widening)
