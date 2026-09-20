@@ -1061,11 +1061,19 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
     **The field, and where it RAISES.** ``M = lcm(N, 4)`` for a basis axis,
     ``lcm(N, 12)`` for ``'ijk'`` (``√3 = ζ₁₂ + ζ₁₂⁻¹``) and ``lcm(N, 28)`` for
     ``'diagonal'`` (``√7 = g/i`` from the quadratic Gauss sum mod 7).
-    ``exact=True`` REFUSES when ``M > srmech.math.qalg.MAX_CYCLOTOMIC_INDEX``
-    (256) rather than falling back to the float carrier — a fallback would be
+    ``exact=True`` REFUSES when the DEGREE ``φ(M)`` exceeds
+    ``srmech.math.qalg.MAX_CYCLOTOMIC_DEGREE``
+    (888) rather than falling back to the float carrier — a fallback would be
     a silent demotion, and the float route is one keyword away. So ``'ijk'``
-    refuses ``N = 128`` and ``'diagonal'`` refuses ``N = 64``, whose ``lcm``s
-    are 384 and 448. A ``mu`` SEQUENCE is normalised EXACTLY rather than in
+    refuses ``N = 227`` (``lcm`` 2724, degree 904) and ``'diagonal'`` refuses
+    ``N = 79`` (``lcm`` 2212, degree 936), while both ADMIT the next ``N`` up
+    (228 at degree 72; 80 at degree 192) — the rule is a SIEVE over ``N`` and
+    not a ceiling, because ``φ`` is not monotone in ``N``. rc478 (`#T1188`)
+    moved the criterion from ``M`` to ``φ(M)``: ``'ijk'`` at ``N = 128``
+    (degree 128) and ``'diagonal'`` at ``N = 64`` (degree 192) were refused
+    under the rc477 index rule and are admitted now, while the
+    ``'diagonal'`` Exeligmos row ``N = 669`` (``lcm`` 18 732, degree 5 328)
+    is refused by name. A ``mu`` SEQUENCE is normalised EXACTLY rather than in
     float (see :func:`_exact_axis8`), so ``mu=[0, 1, 1, 1]`` and the float64
     ``'ijk'`` vector both land on the same exact ``(0,1,1,1)/√3``; what it
     REFUSES is a direction whose ``‖w‖²`` is not ``1``, ``3`` or ``7`` times a
@@ -1133,8 +1141,8 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
 
     Raises:
         ValueError: bad ``j``/``k``/``n_points``/``sigma``/``mu``; or, at
-            ``exact=True``, a field index above ``MAX_CYCLOTOMIC_INDEX`` or a
-            ``mu`` sequence with no exact unit over ℚ.
+            ``exact=True``, a field DEGREE above ``MAX_CYCLOTOMIC_DEGREE`` or
+            a ``mu`` sequence with no exact unit over ℚ.
     """
     j = int(j)
     k = int(k)
@@ -1153,14 +1161,17 @@ def octonion_twiddle(j: int, k: int, n_points: int, *,
     if exact:
         weights, axis_k = _exact_axis8(mu, "octonion_twiddle")
         index = _qalg._turn_field_index(n_points, axis_k)
-        if index > _qalg.MAX_CYCLOTOMIC_INDEX:
+        degree = _qalg._cyclotomic_degree(index)
+        if degree > _qalg.MAX_CYCLOTOMIC_DEGREE:
             raise ValueError(
-                f"octonion_twiddle: exact=True builds Q(zeta_{index}) for n_points="
-                f"{n_points} on this axis, above the measured "
-                f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} cap. The "
+                f"octonion_twiddle: exact=True builds Q(zeta_{index}) of "
+                f"degree {degree} for n_points={n_points} on this axis, above "
+                f"the measured "
+                f"MAX_CYCLOTOMIC_DEGREE={_qalg.MAX_CYCLOTOMIC_DEGREE} cap. The "
                 f"field index is lcm(n_points, 4) for a rational axis, "
                 f"lcm(n_points, 12) for 1/sqrt(3) and lcm(n_points, 28) for "
-                f"1/sqrt(7) — the exact route RAISES here rather than falling "
+                f"1/sqrt(7), and the cap is on the DEGREE phi of that index — "
+                f"the exact route RAISES here rather than falling "
                 f"back to the float carrier, which would be a silent demotion")
         return _qalg._turn_twiddle(_DIM, weights, axis_k, n_points,
                                    (j_red * k_red) % n_points, sigma)
