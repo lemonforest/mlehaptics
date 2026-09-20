@@ -306,51 +306,118 @@ def test_a_mixed_width_two_sided_axis_pair_RAISES_naming_the_compositum() -> Non
 # (7) the sieve, as a RULE
 # --------------------------------------------------------------------------
 
-@pytest.mark.parametrize("name,axis_k", [("i", 1), ("ijk", 3)])
-def test_the_admission_rule_is_the_lcm_sieve_not_a_cap(name, axis_k) -> None:
-    """Accept/refuse agrees with ``lcm(n, base) <= 256`` at EVERY ``n`` in
-    1..128 — the rule, not an endpoint.
+@pytest.mark.parametrize("name,axis_k,summand",
+                         [("i", 1, "q"), ("ijk", 3, "q"),
+                          ("diagonal", 7, "o")])
+def test_the_admission_rule_is_the_lcm_sieve_not_a_cap(name, axis_k,
+                                                       summand) -> None:
+    """Accept/refuse agrees with
+    ``cyclotomic_degree(lcm(n, base)) <= MAX_CYCLOTOMIC_DEGREE`` at EVERY ``n``
+    in 1..128 — the rule, not an endpoint.
 
     Fails on any cap-shaped implementation, and fails specifically if the cap
     check was pushed down into ``_turn_scalars``, which carries no guard of its
-    own (MEASURED: ``_turn_scalars(1, 65, 1, 1)`` answers happily at index
-    260, so moving the check inward leaves NO guard at all).
+    own (MEASURED: ``_turn_scalars(1, 449, 1, 1)`` answers happily at degree
+    896, so moving the check inward leaves NO guard at all).
+
+    rc478 (`#T1188`) — TWO changes, and the second is the load-bearing one.
+    The predicate moved from the field INDEX to its DEGREE; and the
+    parametrisation gained ``("diagonal", 7)``, the octonion ``1/√7`` axis,
+    which through rc477 this sweep never walked. That is the axis that carries
+    the refusals: at ``φ <= 888`` axes 1 and 3 admit **all** 128 lengths, so
+    without the third arm the row is a sweep over a set with no refusal in it
+    — an instrument that could not return otherwise. On the diagonal arm 114
+    of 128 are admitted and **14** refuse, the first at ``n = 79``.
+
+    ⚠️ **The diagonal arm is the expensive one, and deliberately so.** A
+    refusal is arithmetic and costs ~0.5 ms, but each of its 114 ADMITTED rows
+    builds a real ``1/√7`` field, some of degree 888. MEASURED at rc478: this
+    whole file went from seconds to **529 s** when the arm was added. That is
+    the price of sweeping the axis that carries the refusals; the alternative
+    is a green sweep over a set with no refusal in it.
     """
-    mu = qdft_resolve_mu(name)
+    if summand == "q":
+        mu = qdft_resolve_mu(name)
+
+        def call(n):
+            return qdft_summand([[0, 0, 0, 0]] * 2, 1, 1, n, True, -1, mu)
+    else:
+        mu = odft_resolve_mu(name)
+
+        def call(n):
+            return odft_summand([[0] * 8] * 2, 1, 1, n, "left",
+                                "left_associated", -1, mu, mu)
+
     base = AXIS_BASE[axis_k]
     disagreements = []
+    refused = []
     for n in range(1, 129):
         index = base * n // gcd(n, base)
-        want = index <= _qalg.MAX_CYCLOTOMIC_INDEX
+        want = _qalg._cyclotomic_degree(index) <= _qalg.MAX_CYCLOTOMIC_DEGREE
         try:
-            qdft_summand([[0, 0, 0, 0]] * 2, 1, 1, n, True, -1, mu)
+            call(n)
             got = True
         except ValueError:
             got = False
         if got != want:
             disagreements.append((n, index, want, got))
+        if not got:
+            refused.append(n)
     assert not disagreements, (
-        f"axis_k={axis_k} admission is not the lcm sieve at {disagreements[:6]}")
+        f"axis_k={axis_k} admission is not the degree sieve at "
+        f"{disagreements[:6]}")
+    # the sweep must be able to return BOTH answers on the axis that has both
+    if axis_k == 7:
+        assert refused == [79, 83, 89, 97, 101, 103, 107, 109, 113, 115, 121,
+                           123, 125, 127], refused
+    else:
+        assert refused == [], refused
 
 
 def test_the_sieve_is_not_an_interval_in_either_direction() -> None:
     """The named counter-examples to the cap-shaped reading, so a future
-    reader cannot re-derive "``axis_k = 3`` needs ``n <= 64``" from the
-    admissible COUNT (60 of 128) without meeting the ``n`` that refute it.
+    reader cannot re-derive "``axis_k = 7`` needs ``n <= 78``" from a
+    contiguous run without meeting the ``n`` that refute it.
+
+    rc478 (`#T1188`) — every witness here MOVED, because the criterion did.
+    The rc469 pair (``'ijk'`` refusing ``n = 23`` at index 276 while accepting
+    ``n = 126`` at index 252) no longer discriminates: ``φ(276) = 88``, so
+    ``n = 23`` is admitted now, and the degree criterion makes the ``1/√3``
+    axis admit all of 1..128. The sieve is still a sieve — it just lives on
+    the ``1/√7`` axis and further out on the other two.
     """
     ijk = qdft_resolve_mu("ijk")
-    with pytest.raises(ValueError, match="SIEVE and not an interval"):
-        qdft_summand([[0, 0, 0, 0]] * 2, 1, 1, 23, True, -1, ijk)  # index 276
+    # the rc469 pair, both now ADMITTED: the index rule refused the SMALLER
+    # field (degree 88) and accepted the larger one (degree 72 — nearly the
+    # same size), which is the inversion the degree criterion removes.
+    assert _qalg._cyclotomic_degree(276) == 88
+    assert _qalg._cyclotomic_degree(252) == 72
+    qdft_summand([[0, 0, 0, 0]] * 2, 1, 1, 23, True, -1, ijk)      # index 276
     qdft_summand([[0, 0, 0, 0]] * 2, 1, 1, 126, True, -1, ijk)     # index 252
     assert _qalg._turn_field_index(23, 3) == 276
     assert _qalg._turn_field_index(126, 3) == 252
-    # the three named refusals the docstrings quote
-    assert _qalg._turn_field_index(128, 3) == 384      # 'ijk'      at n=128
-    assert _qalg._turn_field_index(64, 7) == 448       # 'diagonal' at n=64
-    assert _qalg._turn_field_index(65, 1) == 260       # a basis axis at n=65
+    # the live non-interval pair on the 1/sqrt(3) axis: 227 REFUSES (degree
+    # 904) while 228, one larger, ANSWERS (degree 72)
+    with pytest.raises(ValueError, match="SIEVE and not an interval"):
+        qdft_summand([[0, 0, 0, 0]] * 2, 1, 1, 227, True, -1, ijk)
+    qdft_summand([[0, 0, 0, 0]] * 2, 1, 1, 228, True, -1, ijk)
+    assert _qalg._cyclotomic_degree(_qalg._turn_field_index(227, 3)) == 904
+    assert _qalg._cyclotomic_degree(_qalg._turn_field_index(228, 3)) == 72
+    # the three refusals the rc468 docstrings named are all ADMITTED now, and
+    # the new named ones are these
+    for n, axis_k, index, degree in ((128, 3, 384, 128), (64, 7, 448, 192),
+                                     (65, 1, 260, 96)):
+        assert _qalg._turn_field_index(n, axis_k) == index
+        assert _qalg._cyclotomic_degree(index) == degree
+        assert degree <= _qalg.MAX_CYCLOTOMIC_DEGREE
     diag = odft_resolve_mu("diagonal")
+    # 'diagonal' at n = 79: lcm(79, 28) = 2212 at degree 936
+    assert _qalg._cyclotomic_degree(_qalg._turn_field_index(79, 7)) == 936
     with pytest.raises(ValueError, match="1/sqrt\\(7\\)"):
-        odft_summand([[0] * 8] * 2, 1, 1, 64, "left", "left_associated", -1,
+        odft_summand([[0] * 8] * 2, 1, 1, 79, "left", "left_associated", -1,
+                     diag, diag)
+    with pytest.raises(ValueError, match="degree 936"):
+        odft_summand([[0] * 8] * 2, 1, 1, 79, "left", "left_associated", -1,
                      diag, diag)
 
 

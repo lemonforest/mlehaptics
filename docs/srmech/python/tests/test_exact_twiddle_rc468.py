@@ -49,9 +49,10 @@ from srmech.cascade import (
 )
 from srmech.math.q import Q
 from srmech.math.qalg import (
-    MAX_CYCLOTOMIC_INDEX,
+    MAX_CYCLOTOMIC_DEGREE,
     Qalg,
     cos_sin_2pi_k_over_n,
+    _cyclotomic_degree as cyclotomic_degree,
 )
 from srmech.physics.qm.octonion import octonion_twiddle
 from srmech.physics.qm.quaternion import quaternion_twiddle
@@ -166,12 +167,53 @@ def test_the_general_turn_satisfies_pythagoras_and_closure_exactly(n) -> None:
     assert (c + s * i) ** n == one, n
 
 
+#: Lazily-computed so the scan is paid only if a witness needs it.
+_INDEX_CEILING: "list[int]" = []
+
+
+def _max_cyclotomic_index_at_cap() -> int:
+    """``max{M : φ(M) <= MAX_CYCLOTOMIC_DEGREE}`` — COMPUTED here so it tracks
+    the constant instead of restating it (rc478, `#T1188`).
+
+    The scan ceiling is DERIVED, not guessed. For an index carrying the first
+    ``j`` distinct primes, ``φ(M)/M >= Π(1 − 1/qᵢ)`` and ``M >= primorial(j)``,
+    so a ``j`` is feasible only while ``primorial(j) <= P·Π qᵢ/(qᵢ − 1)``. At
+    ``P = 888`` that bounds ``j <= 5`` and ``M <= 4273``, so scanning to
+    100 000 covers it with 23× margin. MEASURED at rc478: the answer is
+    **3990** (``φ`` there = 864), with 1740 indices admitted."""
+    if not _INDEX_CEILING:
+        _INDEX_CEILING.append(max(
+            m for m in range(1, 100_001)
+            if cyclotomic_degree(m) <= MAX_CYCLOTOMIC_DEGREE))
+    return _INDEX_CEILING[0]
+
+
 def _cyclotomic_index_of(x: "Qalg") -> int:
     """The cyclotomic index ``N`` of ``x``'s field, found by the ONE property
-    that identifies it: ``ζ_N`` has multiplicative order exactly ``N``."""
+    that identifies it: ``ζ_N`` has multiplicative order exactly ``N``.
+
+    ⚠️ **The candidates are FILTERED by ``φ(c) == x.degree`` before ANY field
+    power is taken** (rc478, `#T1188`). A field of degree ``d`` can only have
+    index ``c`` with ``φ(c) = d``, so the filter is sound — and it is the
+    difference between a search that returns and one that does not. MEASURED
+    over the admitted index range 1..3990: 3990 candidates fall to **8** at
+    ``M = 2676`` (499×), and to 10 / 37 / 45 at ``M = 1020 / 1540 / 3990``,
+    with the true index in the filtered list every time. One
+    ``alpha ** c == one`` on the degree-888 field costs 7–81 ms, so the
+    unfiltered linear walk would be minute-scale per call.
+
+    Through rc477 the range was ``4 * MAX_CYCLOTOMIC_INDEX + 1`` = 1024, which
+    is wrong twice over under a degree cap: it is not the admitted index reach
+    (3990), and for any field of index above it the helper raised
+    ``AssertionError`` **on a correct value**. The "replace it with a divisor
+    walk of ``M``" repair is unavailable — ``M`` is the very thing this helper
+    is looking for."""
     alpha = Qalg.alpha(x.m)
     one = alpha.one()
-    for candidate in range(1, 4 * MAX_CYCLOTOMIC_INDEX + 1):
+    degree = x.degree
+    for candidate in range(1, _max_cyclotomic_index_at_cap() + 1):
+        if cyclotomic_degree(candidate) != degree:
+            continue
         if alpha ** candidate == one:
             return candidate
     raise AssertionError("no cyclotomic order found for this field")
@@ -233,8 +275,13 @@ def test_the_general_turn_refuses_a_non_int_and_an_out_of_range_index() -> None:
         cos_sin_2pi_k_over_n(8, 1.0)
     with pytest.raises(ValueError):
         cos_sin_2pi_k_over_n(0)
+    # rc478 (`#T1188`): the bound is on the DEGREE, so the refusing witness is
+    # the first n whose field is too big, not the first n above a number.
+    # n = 449 builds Phi_1796 at degree 896 > 888; n = 450 (degree 240) and
+    # n = 448 (degree 192) both ANSWER, which is what makes it a sieve.
+    assert cyclotomic_degree(4 * 449) == 896
     with pytest.raises(ValueError):
-        cos_sin_2pi_k_over_n(MAX_CYCLOTOMIC_INDEX + 1)
+        cos_sin_2pi_k_over_n(449)
 
 
 # ── 2. the twiddles: closure and unit norm, EXACTLY ─────────────────────────
@@ -335,14 +382,34 @@ def test_the_axis_scale_SHIFTS_the_rational_set_rather_than_emptying_it() -> Non
 def test_the_exact_route_RAISES_above_the_field_cap_rather_than_falling_back() -> None:
     """A fallback to the float carrier would be a silent demotion — the exact
     defect class this rc removes. Each axis family has its own bound, and the
-    message names the index it would have built."""
-    for mu, n in (("ijk", 128), ("i", 255)):
-        with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_INDEX"):
+    message names the index it would have built AND its degree.
+
+    rc478 (`#T1188`) — the refusing ``n`` all MOVED, because the criterion did:
+    it is now ``φ(M) > MAX_CYCLOTOMIC_DEGREE``, not ``M > MAX_CYCLOTOMIC_INDEX``.
+    Every ``n`` this row used to refuse (``'ijk'`` 128 at degree 128,
+    ``'i'`` 255 at degree 256, ``'diagonal'`` 64 at degree 192) is now
+    ADMITTED, so re-pinning the old numbers would have been a green that means
+    nothing. The ``match=`` moved too — it pins the constant's NAME inside the
+    message, and a build that changed only the ``n`` would still have failed
+    here for the right reason.
+    """
+    for mu, n, want_index, want_degree in (("ijk", 227, 2724, 904),
+                                           ("i", 449, 1796, 896)):
+        assert cyclotomic_degree(want_index) == want_degree
+        assert want_degree > MAX_CYCLOTOMIC_DEGREE
+        with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_DEGREE"):
             quaternion_twiddle(1, 1, n, mu=mu, exact=True)
-    for mu, n in (("diagonal", 64), ("ijk", 128)):
-        with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_INDEX"):
+    for mu, n, want_index, want_degree in (("diagonal", 79, 2212, 936),
+                                           ("ijk", 227, 2724, 904)):
+        assert cyclotomic_degree(want_index) == want_degree
+        with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_DEGREE"):
             octonion_twiddle(1, 1, n, mu=mu, exact=True)
-    # and just below each bound it ANSWERS, so the refusal is a boundary and
+    # ...and the message names the DEGREE, not only the index — the whole
+    # point of the criterion, and the thing a mechanical rename would have
+    # silently dropped.
+    with pytest.raises(ValueError, match=r"degree 936"):
+        octonion_twiddle(1, 1, 79, mu="diagonal", exact=True)
+    # and on the same axis it ANSWERS, so the refusal is a boundary and
     # not a blanket
     assert _is_identity(_power(
         octonion_twiddle(1, 1, 32, mu="diagonal", sigma=1, exact=True), 32))
@@ -420,10 +487,16 @@ def test_the_odft_two_sided_form_keeps_its_DECLARED_bracketing() -> None:
 def test_the_summand_RAISES_above_the_field_cap() -> None:
     """The exact operand elects the exact route; when the field is out of
     reach the op says so instead of answering from a rounded angle."""
-    with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_INDEX"):
-        qdft_summand([[P, 0, 0, 0]] * 2, 1, 1, 65, True, -1, [0, 1, 0, 0])
+    # rc478 (`#T1188`): n = 65 is now ADMITTED (lcm(65,4) = 260, degree 96) —
+    # the rc468 witness measured the INDEX, and the criterion is the DEGREE.
+    # n = 449 on the same basis axis builds Phi_1796 at degree 896 and refuses.
+    assert cyclotomic_degree(260) == 96 <= MAX_CYCLOTOMIC_DEGREE
+    assert cyclotomic_degree(1796) == 896 > MAX_CYCLOTOMIC_DEGREE
+    assert qdft_summand([[P, 0, 0, 0]] * 2, 1, 1, 65, True, -1, [0, 1, 0, 0])
+    with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_DEGREE"):
+        qdft_summand([[P, 0, 0, 0]] * 2, 1, 1, 449, True, -1, [0, 1, 0, 0])
     # a float sample still answers there, on the carrier it elected
-    got = qdft_summand([[float(P), 0.0, 0.0, 0.0]] * 2, 1, 1, 65, True, -1,
+    got = qdft_summand([[float(P), 0.0, 0.0, 0.0]] * 2, 1, 1, 449, True, -1,
                        [0, 1, 0, 0])
     assert all(isinstance(v, float) for v in got)
 
@@ -463,8 +536,10 @@ def test_the_turn_route_refuses_its_boundaries() -> None:
         hypercomplex_exp(k_axes=1, turn=(1.0, 8))
     with pytest.raises(ValueError, match="denominator must be >= 1"):
         hypercomplex_exp(k_axes=1, turn=(1, 0))
-    with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_INDEX"):
-        hypercomplex_exp(k_axes=7, turn=(1, 64))
+    # rc478 (`#T1188`): turn=(1, 64) at k_axes=7 is now ADMITTED (lcm 448,
+    # degree 192). turn=(1, 79) builds Phi_2212 at degree 936 and refuses.
+    with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_DEGREE"):
+        hypercomplex_exp(k_axes=7, turn=(1, 79))
 
 
 def test_exactly_one_of_theta_and_turn_is_given() -> None:
@@ -703,12 +778,16 @@ def test_the_couple_turn_route_REFUSES_rather_than_rounding() -> None:
     with pytest.raises(ValueError, match="rational square"):
         hypercomplex_couple([P, 0, 0], axis=[0, 1, 2, 0], turn=(1, 4))
     # 5 streams pack an OCTONION, so 'diagonal' is the 1/sqrt(7) axis and the
-    # field index is lcm(64, 28) = 448. (At 3 streams the same name is the
-    # quaternion 1/sqrt(3) axis, lcm(64, 12) = 192, and it ANSWERS — the bound
-    # is the axis's, not the turn's alone.)
-    assert hypercomplex_couple([P, 0, 0], axis="diagonal", turn=(1, 64))
-    with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_INDEX"):
-        hypercomplex_couple([P, 0, 0, 0, 0], axis="diagonal", turn=(1, 64))
+    # field index is lcm(79, 28) = 2212 at degree 936. (At 3 streams the same
+    # name is the quaternion 1/sqrt(3) axis, lcm(79, 12) = 948 at degree 312,
+    # and it ANSWERS — the bound is the axis's, not the turn's alone.)
+    # rc478 (`#T1188`) moved the turn from 64 to 79: at 64 BOTH widths are now
+    # admitted (degree 192 and 64), so the old pair no longer discriminates.
+    assert cyclotomic_degree(948) == 312 <= MAX_CYCLOTOMIC_DEGREE
+    assert cyclotomic_degree(2212) == 936 > MAX_CYCLOTOMIC_DEGREE
+    assert hypercomplex_couple([P, 0, 0], axis="diagonal", turn=(1, 79))
+    with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_DEGREE"):
+        hypercomplex_couple([P, 0, 0, 0, 0], axis="diagonal", turn=(1, 79))
 
 
 # ── 6. the whole declared chain, exact on a NON-quarter bin ─────────────────

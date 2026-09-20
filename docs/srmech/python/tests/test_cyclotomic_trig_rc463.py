@@ -44,12 +44,14 @@ No numpy. No ``fractions`` (the exact scalar is ``srmech.math.q.Q``). No
 
 import pytest
 
+from srmech.math.cyclic import gcd
 from srmech.math.poly import cyclotomic_polynomial
 from srmech.math.q import Q
 from srmech.math.qalg import (
-    MAX_CYCLOTOMIC_INDEX,
+    MAX_CYCLOTOMIC_DEGREE,
     Qalg,
     cos_sin_2pi_k_over_n,
+    _cyclotomic_degree as cyclotomic_degree,
 )
 
 ZERO = Q(0, 1)
@@ -364,14 +366,25 @@ def test_refuses_a_non_int_turn_numerator(bad):
 
 
 def test_refuses_above_the_measured_cap():
-    """The degree cap is a REACHABLE refusal, and the last accepted index is
-    accepted — an instrument that only ever raises is not a measurement."""
-    assert MAX_CYCLOTOMIC_INDEX == 256
-    with pytest.raises(ValueError, match="requires n <= 256"):
-        cos_sin_2pi_k_over_n(MAX_CYCLOTOMIC_INDEX + 1)
-    c, s = cos_sin_2pi_k_over_n(MAX_CYCLOTOMIC_INDEX)
-    assert c.degree > 0
-    assert s.degree == c.degree
+    """The degree cap is a REACHABLE refusal, and the neighbours on BOTH sides
+    are accepted — an instrument that only ever raises is not a measurement.
+
+    rc478 (`#T1188`): the cap is on ``φ(lcm(n, 4))`` and not on ``n``, so this
+    row is now genuinely two-sided in the way only a SIEVE can be — ``n = 448``
+    (degree 192) answers, ``n = 449`` (degree 896) refuses, and ``n = 450``
+    (degree 240) answers AGAIN above the refusal. Through rc477 the same row
+    could only show a ceiling, because a ceiling is all the constant was."""
+    assert MAX_CYCLOTOMIC_DEGREE == 888
+    assert cyclotomic_degree(4 * 449) == 896 > MAX_CYCLOTOMIC_DEGREE
+    with pytest.raises(ValueError, match="degree 896"):
+        cos_sin_2pi_k_over_n(449)
+    with pytest.raises(ValueError, match="MAX_CYCLOTOMIC_DEGREE=888"):
+        cos_sin_2pi_k_over_n(449)
+    for n, want_degree in ((448, 192), (450, 240)):
+        assert cyclotomic_degree(4 * n // gcd(n, 4)) == want_degree
+        c, s = cos_sin_2pi_k_over_n(n)
+        assert c.degree == want_degree
+        assert s.degree == c.degree
 
 
 # ── terminal projection (SANITY CHECK ONLY — not the exactness evidence) ─────
