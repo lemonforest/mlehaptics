@@ -34,13 +34,29 @@ family, and a type-witness taken on an INT sample cannot see it. Hence
 :func:`test_a_general_vector_wire_with_an_exact_sample_RAISES`, which asserts
 the raise rather than the type.
 
-**The admission rule is a SIEVE, not a ceiling.** ``n`` is admissible iff
-``lcm(n, base) <= 256`` with ``base = {1: 4, 3: 12, 7: 28}[axis_k]``. That is
-not an interval: ``axis_k = 3`` REFUSES ``n = 23`` (index 276) and ACCEPTS
-``n = 126`` (index 252). A cap-shaped claim ("``axis_k = 3`` needs
-``n <= 64``") is wrong in both directions, which is why
-:func:`test_the_admission_rule_is_the_lcm_sieve_not_a_cap` checks agreement
-with the RULE over every ``n`` in 1..128 rather than pinning an endpoint.
+**The admission rule is a SIEVE, not a ceiling.** Since rc478 (`#T1188`) ``n``
+is admissible iff ``phi(lcm(n, base)) <= MAX_CYCLOTOMIC_DEGREE`` with
+``base = {1: 4, 3: 12, 7: 28}[axis_k]`` — a bound on the field's DEGREE, which
+is what any of this costs, rather than on its index. That is not an interval:
+on the ``1/√7`` axis it REFUSES ``n = 79`` (index 2212, degree 936) and
+ACCEPTS ``n = 80`` (index 560, degree 192). A cap-shaped claim
+("``axis_k = 7`` needs ``n <= 78``") is wrong in both directions.
+
+The rule is therefore checked against every ``n`` in 1..128 rather than at an
+endpoint — but in TWO rows rather than one, because the two halves have wildly
+different costs.
+:func:`test_the_admission_rule_is_the_degree_sieve_over_every_n` sweeps the
+rule itself EXHAUSTIVELY for under 5 ms per axis, and
+:func:`test_the_public_ops_route_through_that_rule` proves the public ops
+reach it, at every boundary plus a structured interior spread. Their own
+docstrings carry the measurement that split them, and name what the single
+exhaustive form covered that they do not.
+
+The rc469 witnesses in this file were written against the INDEX rule and most
+of them moved: ``axis_k = 3`` refusing ``n = 23`` (index 276) while accepting
+``n = 126`` (index 252) was the index rule refusing the field of degree **88**
+and accepting the one of degree **72** — the inversion rc478 removes. Both are
+admitted now.
 """
 
 from __future__ import annotations
