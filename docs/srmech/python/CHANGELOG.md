@@ -18,6 +18,120 @@ All notable changes to this package will be documented here. The format follows 
      `srmech.__version__` and that the slice holds EVERY current-minor entry in the file, so a
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc478] - `#T1188`: the cap was on the wrong quantity — a degree-500 field was admitted while a degree-88 field was refused, and the memo that pays for raising it
+
+*(**ABI stays 29**, and the ground is measured rather than assumed. The whole change is Python-side: the exact cyclotomic route has no C peer at all, because C has no bignum ℚ let alone a cyclotomic field, and the three exported twiddle symbols take only `double theta`. The only C delta is **five regenerated `const char *` rows** in `c/src/srmech_tool_registry.c`, which is GENERATED — no signature, no struct, no status reinterpretation, no symbol added, none removed, and **zero `MAX_CYCLOTOMIC` references anywhere in non-generated C**. Registry total unchanged at **732**.)*
+
+**CONDITIONS FOR EVERY FIGURE BELOW.** WSL2, session worktree, branched from `256bec2da` (v0.9.0rc477), CPython 3.12.3, **numpy absent** (import attempted and printed on every run), `PYTHONDONTWRITEBYTECODE=1`, every timed call in the FOREGROUND under `timeout`, one at a time. The PURE cell is a tree with **no** `.so` / `.pyd` / `.dll` / `.pyc` / `__pycache__` anywhere — verified by a find, not by a deletion — and the banner was printed before every measurement: `version=0.9.0rc478 HAS_NATIVE=False NATIVE_ABI_VERSION=None EXPECTED_ABI_VERSION=29 LOAD_ERROR=None`, plus `srmech.__file__`, `_native.__file__`, `qalg.__file__`, both cap symbols, the memo's type and length, `numpy_importable=False`. The NATIVE cell used for the two version-stamped censuses was built from this rc's own header and AUTHENTICATED by calling it rather than by trusting the file: `describe()["native"] == {"has_native": True, "abi_version": 29, "native_version": "0.9.0rc478"}`. `SRMECH_ALLOW_STALE_NATIVE` was never set and no mtime was touched. **No `fractions`, no numpy, no libm, no `math.*` is used as an oracle anywhere below**: every exactness verdict is an exact integer comparison.
+
+⚠️ **`tracemalloc` inflates the very call it measures by 6–11× on this cell** (measured 6.01× at degree 480, 10.82× at degree 864 — it grows with the degree). No timing below was taken inside it.
+
+### THE DEFECT: THE CONSTANT BOUNDED A QUANTITY NO COST DEPENDS ON
+
+`MAX_CYCLOTOMIC_INDEX = 256` bounded the cyclotomic INDEX `M`. Everything it existed to bound is a function of the DEGREE `φ(M) = deg Φ_M` and **none** of it is a function of `M`: the coordinate-vector length is `φ(M)`, an exact `Q` multiply in the field is `O(φ(M)²)` rational operations, and the answer's resident size is degree-linear. So the rule refused and admitted the wrong objects in BOTH directions, measured on the rc477 tree:
+
+| row | index `M` | degree `φ(M)` | rc477 verdict | rc478 verdict |
+|---|---|---|---|---|
+| `cos_sin_2pi_k_over_n(251)` | 1004 | **500** | ADMITTED | admitted |
+| `qdft_summand(…, n=23, mu='ijk')` | 276 | **88** — five times smaller | **REFUSED** | admitted |
+
+**`MAX_CYCLOTOMIC_DEGREE = 888` replaces it**, a bound on `φ(M)`. The public symbol `MAX_CYCLOTOMIC_INDEX` is **REMOVED** with no alias, per the no-legacy-path discipline; `from srmech.math.qalg import MAX_CYCLOTOMIC_INDEX` now raises `ImportError`.
+
+### WHY 888 — DERIVED, NOT PREFERRED
+
+`888 = φ(2676) = φ(lcm(669, 4)) = φ(lcm(669, 12))` is exactly the degree of the **Exeligmos** field — the 669-year Antikythera back-panel period — which is also the **Saros** field on the quaternion body diagonal. `669 = 3·223` is odd, so `lcm(669,4) = lcm(669,12) = 2676`: the two cheap axes are the SAME field, and the cheap axis buys nothing.
+
+It is the SMALLEST bound that admits it: **at `φ ≤ 864` Exeligmos still refuses on every axis** (measured). Rounding up to 1024 covers nothing further that was asked for and makes the dearest admitted call **3.30× dearer** — measured interleaved A,B,A,B and non-overlapping, the worst admitted `axis_k = 7` row goes from **44 656 ms** (M = 2660, φ = 864, 287 terms) to **147 381 ms** (M = 4620, φ = 960, 343 terms).
+
+### WHAT IT ADMITS — MEASURED, CLOSED-FORM
+
+| quantity | rc477 rule | rc478 rule |
+|---|---|---|
+| `n ≤ 128` admitted, `axis_k` 1 / 3 / 7 | 96 / 60 / 30 | **128 / 128 / 114** |
+| first refusal, `axis_k` 1 / 3 / 7 | 65 / 23 / 11 | none / none / **79** (`Φ_2212`, degree 936) |
+| Antikythera dial matrix (4 periods × 3 axes) exact | 3 of 12 | **8 of 12** — all four periods on BOTH cheap axes |
+| largest admitted `n`, every axis | — | **3780** (`Φ_3780`, degree 864) |
+| largest admitted INDEX | 256 | **3990** (degree 864), **1740** indices admitted |
+
+**STRICT WIDENING, and the control fires.** Over `(n ≤ 4096) × (axis_k ∈ {1,3,7})` = **12 288** rows: **0 LOST**, 2 118 gained, 234 both-admit, 9 936 both-refuse. For `cos_sin_2pi_k_over_n`: **0 of n ≤ 256 lost**, 908 gained, max n 3 780. The POSITIVE CONTROL at `φ ≤ 100` loses **12** twiddle rows and **132** `cos_sin` rows, so the instrument can return otherwise.
+
+**⚠️ It is a SIEVE, not a ceiling, and now demonstrably so on both sides.** `axis_k = 1` refuses `n = 449` (degree 896) and admits `n = 450` (degree 240); `axis_k = 3` refuses 227 (degree 904) and admits 228 (degree 72); `axis_k = 7` refuses 79 (degree 936) and admits 80 (degree 192). Under the rc477 index rule the admitted set was an interval in `M`, so "one above the last accepted" was the whole story — a degree cap is the first form of this constant that can show the far side. This resolves `CHANGELOG.md:3463`'s warning that *"two different quantities share the constant 256 and must not be merged in one sentence"*: under a degree criterion `cos_sin_2pi_k_over_n` bounds `φ(lcm(n,4))` and the twiddle routes bound `φ(lcm(n, base))` — **the same quantity at last**. That entry's sieve warning carries forward with corrected figures; `:3413` / `:3617` are DATED records under historical headers and are not edited.
+
+### WHAT STILL REFUSES — NAMED, WITH ITS DEGREE IN THE MESSAGE
+
+`octonion_twiddle(1, 1, 669, mu="diagonal", exact=True)` builds `Φ_18732` at degree **5 328** — six times the degree, because that index carries a factor 7 the cheap axes do not — and **RAISES in 0.2 ms** saying so. Saros / Metonic / Callippic on the same axis refuse at degree 2 664 / 2 208 / 2 208. These are named refusals with witnesses, never silent demotions to the float carrier.
+
+⚠️ **A mechanical rename would have shipped a message that never names the degree.** Renaming `MAX_CYCLOTOMIC_INDEX={…}` to `MAX_CYCLOTOMIC_DEGREE={…}` at the five twiddle guard sites yields *"builds Q(zeta_2212) … above the measured MAX_CYCLOTOMIC_DEGREE=888 cap"* — in which **936, the thing that exceeded the bound, never appears**. All six guards now compute the degree and interpolate it, and a gate reads it back out of the message.
+
+### EXACTNESS OF THE NEWLY-ADMITTED FIELDS — AN INDEPENDENT INTEGER ORACLE
+
+The oracle builds `Φ_M` itself from `x^M − 1` up the divisor lattice by its own exact integer polynomial division, reduces with its own shift-and-reduce over Python ints under an explicit common denominator, computes `ζ^e` by `e` shift-reduce steps (**no multiplication at all**), and builds its own `√k` — `√3 = ζ₁₂ + ζ₁₂⁻¹`, `√7 = g/i` with `g` the Legendre sum — **verifying it by squaring**, so the σ sign is CHECKED rather than squared away. It never calls `Qalg.__mul__`, `Qalg.inverse`, `Qalg.__pow__`, `Qalg.one`, `Qalg.alpha` or `cyclotomic_polynomial`.
+
+**13 of 13 rows EXACT** in value AND sign, with every negative control returning False: Exeligmos on `axis_k` 1 and 3 (M = 2676, degree 888), the dearest `axis_k = 7` row (M = 2660, degree 864), Saros on `axis_k` 3 and 1, the dearest `axis_k = 1` row (M = 1772, degree 884), the sparse `axis_k = 7` row (M = 1792, degree 768), Metonic, the 512 anchor (M = 1524, degree 504) and the four sieve witnesses at M = 276 / 308 / 364 / 420. Twelve of the thirteen are parametrised in `tests/test_cyclotomic_degree_cap_rc478.py`; the `n = 95` row is omitted from the gate because the tree's own call there is a 44–67 s field construction, and it is pinned arithmetically instead.
+
+`_cyclotomic_degree` itself is checked against **two** independent oracles: the tree's own `cyclotomic_polynomial(M)["degree"]` (**1200 / 1200**, 0 disagreements) and a from-scratch trial-division totient (**5000 / 5000**). Negative controls fire: the same comparison against a SHIFTED index disagrees at **192 of 198**, and `φ(1004) == 501` is False (it is 500).
+
+### THE MEMO SHIPS IN THE SAME COMMIT, AND THIS IS THE MEASUREMENT THAT SAYS SO
+
+`_inv_sqrt_k(k, index)` is a pure function of two ints that the turn loop rebuilt on EVERY turn. Shipping the constant alone would publish a cap whose dearest admitted call is about a minute, most of it that recomputation. Memoised on `(k, index)` in a **plain dict** — not `functools.lru_cache`, for the reason `_PHI_CACHE` already records: the decorator replaces the `FunctionDef` that `tests/composes_derive.py` walks.
+
+Arm A clears the memo before EVERY turn; arm B clears it once. `_PHI_CACHE` is warm in both, so the memo is the only variable. The LAST turn of each arm is the comparison.
+
+| row | degree | no-memo last turn | memo last turn | **saving** | separated? |
+|---|---|---|---|---|---|
+| **`axis_k = 1`, n = 669 — THE CONTROL** | 888 | 2 727.5 ms | 2 838.5 ms | **−4.1 %** | **no — overlapping** |
+| `axis_k = 1`, n = 235 — the second control | 368 | 563.6 ms | 501.4 ms | +11.0 % | no — overlapping |
+| `axis_k = 3`, n = 127 | 504 | 3 059.4 ms | 1 130.6 ms | **63.0 %** | yes, non-overlapping |
+| **`axis_k = 3`, n = 669 — Exeligmos on the body diagonal** | 888 | 6 795.1 ms | 3 099.0 ms | **54.4 %** | yes, non-overlapping |
+| `axis_k = 7`, n = 11 | 120 | 608.2 ms | 226.1 ms | **62.8 %** | yes |
+| **`axis_k = 7`, n = 95 — the dearest admitted row** | 864 | 53 850.1 ms | 11 655.9 ms | **78.4 %** | yes, 4.6× |
+
+**The control is structural, not statistical, and that matters.** At `axis_k = 1` the memo holds **0 entries** after a turn — `_turn_scalars` only calls `_inv_sqrt_k` when `axis_k != 1` — so the memo *cannot* have an effect there, and the A/B difference measured **−4.1 % to +11.0 %, sign-indefinite and overlapping**. That is this instrument's noise floor, and the 54.4 % / 78.4 % figures must be read against it. A gate asserts the 0-entry fact directly.
+
+**Worst-case residency is bounded and computed**: **345** distinct keys (249 reachable indices divisible by 12, 96 divisible by 28, largest 3 780 on both), degrees summing to **156 368**, at a measured **112.05 bytes per degree** (the coordinate tuple and its `Q`, excluding the `Φ` tuple already resident in `_PHI_CACHE`) → **16.7 MiB** worst case, reachable only by having built all 345 fields. A plain dict with no eviction is the right shape.
+
+### WHAT THE CAP ADMITS AT ITS EXTREME — RECORDED, NEVER ASSERTED
+
+The dearest admitted object is **`octonion_twiddle(1, 1, 95, mu="diagonal", exact=True)`** — M = 2660, φ = 864, 287 terms — at **44–67 s cold**, **11.7 s warm**, **0.6857 MiB** `tracemalloc` peak (measured on that row itself, after an earlier claim was found to have been extrapolated from a different axis; peak/degree is 0.000808 → 0.000793 MiB across a 1.8× degree step, and the widest rational coefficient anywhere is **4 bits**). The Exeligmos answers themselves are ordinary: **2.8 s** on `axis_k = 1` and **6.5 s** on `axis_k = 3`, cold.
+
+**φ bounds the OBJECT and NOT the clock, and here is the number.** At one IDENTICAL degree the admitted cost spans **98×** — `axis_k = 7`, `φ = 768` both, `n = 256` at 7 terms → 364.9 ms against `n = 85` at 253 terms → 35 742.8 ms, interleaved and non-overlapping — because the sparsity of `Φ_M` is not a function of its degree. That spread is **pre-existing**: it is already 3.2–5.1× inside the set rc477 admits. It is also genuinely WIDENED by this change, and the honest number is that it roughly doubles on the expensive axis (44× at `φ ≤ 512` → 98× at `φ ≤ 888`) while the worst admitted call goes from ~17–22 s to ~44–67 s on this cell.
+
+**A SECOND admission criterion was measured and REJECTED.** A per-axis degree bound would have to refuse that **364.9 ms** answer in order to block the 35 742.8 ms one at the SAME degree — the removed defect in a new coordinate. A memory guard never fires (the dearest admitted answer peaks at 0.686 MiB). A terms bound tight enough to block `n = 85` at 253 terms also refuses `n = 37` on `axis_k = 1` at 37 terms, measured 35.28 ms. A time budget must predict before paying, and the machine band on ONE unchanged configuration is **1.54×** (43.7–67.2 s across five runs). **rc478 ships ONE bound**, and the worst admitted row as a recorded number rather than an asserted threshold.
+
+### THE ORDER-FINDING LOOP: A `φ(c) == degree` FILTER, NOT A DIVISOR WALK
+
+`tests/test_exact_twiddle_rc468.py`'s `_cyclotomic_index_of` found a field's cyclotomic order by `alpha ** candidate == one` over `range(1, 4 * MAX_CYCLOTOMIC_INDEX + 1)` = 1..1024. Under a degree cap that bound is wrong twice: the admitted index reach is **3990**, and for any field of index above 1024 the helper raised `AssertionError` **on a correct value**. The repair proposed by the earlier passes — "replace it with a divisor walk of `M`" — is **unavailable**, because `M` is the very thing the helper is looking for.
+
+The shipped repair filters candidates by `φ(c) == x.degree` before taking ANY field power, which is sound because a field of degree `d` can only have index `c` with `φ(c) = d`. **Measured reduction over 1..3990: 3990 → 8 at M = 2676 (499×)**, and → 10 / 37 / 45 at M = 1020 / 1540 / 3990, with the true index in the filtered list every time. One `alpha ** c == one` on the degree-888 field costs 7–81 ms, so the unfiltered walk would be minute-scale per call. The new ceiling is COMPUTED in the test so it tracks the constant, from a derived scan bound: `primorial(j) ≤ P·Π qᵢ/(qᵢ−1)` gives `j ≤ 5` and `M ≤ 4273` at P = 888, so a sieve to 100 000 covers it with 23× margin.
+
+A predicate scan of every **arithmetic-position** use of the old constant tree-wide found exactly **three**: this one and two `MAX + 1` boundary probes, both restated here. No other site in the tree was sized on the index.
+
+### THE NEW HELPER IS PRIVATE, AND THAT IS A DECISION A GATE FORCED
+
+`_cyclotomic_degree(index)` computes `φ(M)` from `primes.factor` alone and **never builds `Φ_M`** — 2.1 µs per call at index 18 732, which is the whole point: an admission guard must answer *"how big is the object this call would build?"* before paying for it. It is written public in the first pass, and `tests/test_registry_completeness_rc416.py` **FIRED** on it: a public `__all__` callable with no `ToolEntry` goes red. It is private rather than registered because the number it returns ALREADY ships on the registered surface, as `cyclotomic_polynomial(M)["degree"]` — a public peer would be a second op for a quantity that already exists. What rc478 needed was a CHEAP ROUTE to an existing quantity, so it lands beside `_cyclotomic_m` and `_turn_field_index` as module-private arithmetic, on the same ground `_inv_sqrt_k`'s docstring already records for itself.
+
+### THE SWEEP NOW WALKS THE AXIS THAT CARRIES THE REFUSALS
+
+`tests/test_exact_axis_summand_rc469.py`'s admission sweep was parametrised over `axis_k ∈ {1, 3}` only. At `φ ≤ 888` those two axes admit **all 128** lengths, so without a third arm the row would be a sweep over a set with **no refusal in it** — an instrument that could not return otherwise. The parametrisation gains `("diagonal", 7)`, where 114 of 128 are admitted and the refused set is asserted exactly: `{79, 83, 89, 97, 101, 103, 107, 109, 113, 115, 121, 123, 125, 127}`. **MEASURED COST, stated rather than discovered in CI: that file goes from seconds to 529 s**, because each of the 114 admitted rows builds a real `1/√7` field. That is the price of sweeping the axis that carries the 45-second row.
+
+### GATES — AND WHAT EACH ONE DOES NOT PROVE
+
+`tests/test_cyclotomic_degree_cap_rc478.py`, **34 rows, 153 s**. Every gate's docstring states its own limit; the headline ones:
+
+* **G-CAP-BOUNDARY** — the refusal is reachable and TWO-SIDED on all three axes, and each of the six guard messages names the computed degree. *Does not prove the boundary is in the RIGHT place, only that it is where the constant says and that the refusal is legible.*
+* **G-CAP-EXELIGMOS** — the ruling executed, including that `φ ≤ 864` refuses it on every axis. *Does not prove Exeligmos is USEFUL at that length.*
+* **G-CAP-WIDENING** — 0 of 12 288 lost, with the `φ ≤ 100` control returning 12 and 132. *Says nothing about `n > 4096`, nor about callers outside this tree who pinned the removed symbol — for them this is a BREAK, deliberately and without an alias.*
+* **G-CAP-EXACT** — the independent integer oracle. *Does not prove `Qalg.__mul__` is correct in general, only that these values satisfy the defining identities of the field they claim.*
+* **G-CAP-WORST** / **G-CAP-DENSITY** — the named dearest row and the matched-degree 98× pair, asserted as ARITHMETIC (admitted, degree, term count) and never as milliseconds. *Not timing assertions; a ms threshold is machine-shaped and would fail on a loaded CI cell.*
+* **G-CAP-SQRTK** — `_inv_sqrt_k(k, M)² · k == 1` in the field with `==`, the memo returning the same object under `is` AND rebuilding an equal one after a clear, and the `axis_k = 1` zero-entry control. *Not a performance gate; the savings are recorded measurements.*
+* **G-CAP-INDEX** / **G-CAP-MEMO-BOUND** — the 3990 reach and the 345-key residency, both computed so they track the constant. *G-CAP-INDEX does not prove no other index-sized site exists, though the predicate scan found none.*
+
+### LEDGERS RE-RUN, NOT BACKFILLED
+
+Every version-stamped artefact was re-measured on this tree rather than re-stamped. **Demotion census** — re-run in BOTH cells (the native one from a library built from this rc's own header): 473 ops, 835 rows, **only the meta line moved; 0 of 835 data rows changed**. **Frame-scope census** — re-run, only the version stamp moved. **Example-args ledger** — re-harvested, 732 ops, `by_status` identical (456 ok), the only non-meta delta a wall-clock `time_ns` argument. **R3 DECLARED ledger** — **238**, unmoved. The notebook's four `Live at rcNNN` stamps move to rc478 with their values RE-READ, not carried: registry **732**, `describe()["tools"]["total"]` **732**, cascade catalog **21 = 18 executable + 3 leaf**, `c_runnable` **18**, and ABI **29** read out of a loaded rc478 library.
+
+**Not moved, and each checked rather than assumed:** `srmech.math.laplacian.MAX_CYCLIC_SPECTRUM_N = 256` is a DIFFERENT quantity — it bounds `n` for `cyclic_laplacian_spectrum`, whose field is `Φ_n` at degree `φ(n)`, where this bounds `φ(lcm(n, base))`. It does not move; but `qalg.py`'s claim that the two *"match at the same 256 for the same reason"* is **RETRACTED** in the rewritten rationale block rather than renumbered, because they never bounded the same quantity and the raise makes the sentence false as well as imprecise. `_TWIDDLE_N_MAX = 2³²`, `FACTOR_MAX_DISTINCT_PRIMES = 64` (≤ 5 distinct primes at any admitted index) and `cyclotomic_polynomial`'s iterative uncapped build are all clear of the new bound. `docs/srmech/adr/` and `python/README.md` carry **0** hits for `MAX_CYCLOTOMIC`.
+
 ## [0.9.0rc477] - `#T1188`: the axis was never the nearest word and the scale was rounded twice — 179 Q61 units off the body diagonal, an exactly representable 3-4-5 unit lost, and a reciprocal that was correctly rounded all along
 
 *(ABI **28 → 29**. One bump, on the oldest ground this changelog records — **served values move** (the v21 / v26 / v27 / v28 ground) — and on nothing else. The library gains **two** names, `srmech_axis_unit` and `srmech_sqrt_project_root` (**808 → 810** `T srmech_*`, measured with `nm -D --defined-only`), and loses a file-local one, `cr_inv_sqrt` (0 exported either side, 1 local before, 0 after); neither new name is a reason to bump — both are declared in the PRIVATE `c/src/srmech_sqrt_internal.h`, reach no `srmech.h` declaration and no ctypes binding, and adding a symbol has never bumped. Same wording discipline as rc476's: "no new `srmech.h` / ABI / ctypes surface", never "zero new exported symbols".)*
