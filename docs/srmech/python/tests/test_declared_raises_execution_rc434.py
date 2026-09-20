@@ -411,12 +411,16 @@ PROBES: list[tuple] = [
      "ValueError", ([[1, 0, 0, 0], [1, 0, 0, 0]], 1, 1, 2, True, -1,
                     [0.0, 1.0, 2.0, 0.0]), {},
      "axis norm-squared 5: no exact unit in the {1,3,7} fields"),
-    # n = 65 on a WIDTH-1 axis: lcm(65, 4) = 260 > 256. The width matters -- the
-    # admissible n are a sieve, not an interval -- so the probe names the width.
+    # n = 449 on a WIDTH-1 axis: lcm(449, 4) = 1796, whose DEGREE phi(1796) is
+    # 896 > 888. The width matters -- the admissible n are a sieve, not an
+    # interval -- so the probe names the width. rc478 (`#T1188`) moved this
+    # probe off n = 65: the criterion is now the field's DEGREE, and n = 65
+    # (index 260, degree 96) is ADMITTED, so the old probe would have executed
+    # a successful call while claiming to execute a declared raise.
     ("qdft_summand/field-cap", "srmech.cascade.qdft_summand",
-     "ValueError", ([[1, 0, 0, 0]] * 65, 1, 1, 65, True, -1,
+     "ValueError", ([[1, 0, 0, 0]] * 449, 1, 1, 449, True, -1,
                     [0.0, 1.0, 0.0, 0.0]), {},
-     "field index lcm(65, 4) = 260 above MAX_CYCLOTOMIC_INDEX 256"),
+     "field Phi_1796 of degree 896 above MAX_CYCLOTOMIC_DEGREE 888"),
     # 1/sqrt(3) on the left and 1/sqrt(7) on the right: ONE sine scalar cannot
     # carry both, and Q(sqrt 3, sqrt 7) is not a simple extension Qalg builds.
     ("odft_summand/mixed-width-axis", "srmech.cascade.odft_summand",

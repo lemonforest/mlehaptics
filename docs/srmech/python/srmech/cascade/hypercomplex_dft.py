@@ -361,27 +361,41 @@ def _exact_turn_pair(n: int, r: int, sigma: int, axis_k: int):
     group; but it is the cheaper answer whenever the transform is scalar and
     the length is a power of two, and a caller should reach for it there.
 
-    Raises ``ValueError`` when ``M`` exceeds
-    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256) — see
+    Raises ``ValueError`` when the DEGREE of that field exceeds
+    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_DEGREE` (888) — see
     :func:`qdft_summand` on why it raises rather than falling back.
 
     ⚠️ **The admission rule is a SIEVE, not a ceiling**, and that was measured
-    rather than assumed. ``n`` is admissible iff ``lcm(n, base) ≤ 256`` with
+    rather than assumed. ``n`` is admissible iff
+    ``φ(lcm(n, base)) ≤ 888`` with
     ``base = {1: 4, 3: 12, 7: 28}[axis_k]``, which is not an interval: at
-    ``axis_k = 3`` it REFUSES ``n = 23`` (index 276) while ACCEPTING ``n = 126``
-    (index 252), and at ``axis_k = 7`` it refuses ``n = 11`` while accepting
-    ``n = 63``. Over ``n`` in 1..128 the admissible counts are 96 / 60 / 30 at
-    ``axis_k`` 1 / 3 / 7, with first refusals 65 / 23 / 11. Writing this as
-    "``axis_k = 3`` needs ``n ≤ 64``" would be wrong in BOTH directions."""
+    ``axis_k = 7`` it REFUSES ``n = 79`` (index 2212, degree 936) while
+    ACCEPTING ``n = 80`` (index 560, degree 192) and every ``n`` up to 128
+    except fourteen; at ``axis_k = 3`` it refuses ``n = 227`` (index 2724,
+    degree 904) while accepting ``n = 228`` (index 228, degree 72); at
+    ``axis_k = 1`` it refuses ``n = 449`` (degree 896) while accepting
+    ``n = 450`` (degree 240) — and ``n = 3780``, degree 864, on all three
+    axes at once. Over ``n`` in 1..128 the admissible counts are
+    **128 / 128 / 114** at ``axis_k`` 1 / 3 / 7, the only refusals being the
+    fourteen ``{79, 83, 89, 97, 101, 103, 107, 109, 113, 115, 121, 123, 125,
+    127}`` on the ``1/√7`` axis. Writing this as "``axis_k = 7`` needs
+    ``n ≤ 78``" would be wrong in BOTH directions — 114 of the 128 are
+    admitted, not 78.
+
+    rc478 (`#T1188`) moved the criterion from the field INDEX to its DEGREE
+    and the figures above with it; the rc468 counts (96 / 60 / 30, first
+    refusals 65 / 23 / 11) were correct for ``lcm(n, base) ≤ 256`` and are
+    superseded, not contradicted."""
     index = _qalg._turn_field_index(n, axis_k)
-    if index > _qalg.MAX_CYCLOTOMIC_INDEX:
+    too_big = _qalg._field_too_big(index)
+    if too_big is not None:
         raise ValueError(
             f"exact twiddle: n={n} on an axis of width 1/sqrt({axis_k}) needs "
-            f"Q(zeta_{index}), above the measured "
-            f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} field cap. The "
-            f"field index is lcm(n, 4) for a rational axis, lcm(n, 12) for "
-            f"1/sqrt(3) and lcm(n, 28) for 1/sqrt(7), so the admissible n are a "
-            f"SIEVE and not an interval. The exact route RAISES rather than "
+            f"Q(zeta_{index}) {too_big}. "
+            f"The field index is lcm(n, 4) for a rational axis, lcm(n, 12) for "
+            f"1/sqrt(3) and lcm(n, 28) for 1/sqrt(7), and the cap is on the "
+            f"DEGREE phi of that index, so the admissible n are a SIEVE and "
+            f"not an interval. The exact route RAISES rather than "
             f"falling back to a rounded angle, which is the silent wrong answer "
             f"this rc removed; pass a float sample to elect the float carrier "
             f"deliberately")
@@ -637,11 +651,11 @@ def _exp_at_turn(turn, k_axes: int) -> "tuple":
         raise ValueError(
             f"hypercomplex_exp: turn denominator must be >= 1; got {n_turn}")
     index = _qalg._turn_field_index(n_turn, k_axes)
-    if index > _qalg.MAX_CYCLOTOMIC_INDEX:
+    too_big = _qalg._field_too_big(index)
+    if too_big is not None:
         raise ValueError(
             f"hypercomplex_exp: turn=({k_turn}, {n_turn}) at k_axes={k_axes} "
-            f"needs Q(zeta_{index}), above the measured "
-            f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} field cap. "
+            f"needs Q(zeta_{index}) {too_big}. "
             f"The exact route RAISES rather than falling back to a rounded "
             f"angle; hand theta= a float radian to take that carrier "
             f"deliberately")
@@ -740,10 +754,11 @@ def hypercomplex_exp(theta=None, k_axes=None, *, turn=None) -> "tuple":
         ValueError: ``k_axes`` outside ``{1, 3, 7}``; neither or both of
             ``theta`` / ``turn`` given; a non-finite ``theta``; a ``turn`` that
             is not an ``(int, int)`` pair or whose ``n < 1``; or a turn whose
-            field index exceeds
-            :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256) — it RAISES
+            field DEGREE exceeds
+            :data:`srmech.math.qalg.MAX_CYCLOTOMIC_DEGREE` (888) — it RAISES
             there rather than falling back to a rounded angle, so
-            ``k_axes=7`` refuses ``n = 64`` (``lcm`` 448).
+            ``k_axes=7`` refuses ``n = 79`` (``lcm`` 2212, degree 936) while
+            admitting ``n = 80`` (``lcm`` 560, degree 192).
 
     Worked anchors::
 
@@ -1326,15 +1341,18 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
     the C-mirrored op order, **accurate to round-off**.
 
     ⚠️ **It RAISES above the field cap, and the admissible ``n`` are a SIEVE
-    rather than a ceiling.** ``M`` must be at most
-    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256), so an exact sample at
-    ``n = 65`` on a basis axis raises rather than answering from a rounded
-    angle. Since ``M`` depends on the AXIS WIDTH the admissible set does too,
-    and it is not an interval: MEASURED over ``n`` in 1..128, ``axis_k`` 1 / 3
-    / 7 admit 96 / 60 / 30 lengths with first refusals 65 / 23 / 11 — and
-    ``axis_k = 3`` refuses ``n = 23`` while accepting ``n = 126``. That is a
-    deliberate break with rc467, which answered — inexactly, wearing the exact
-    carrier. Pass a float sample to elect the float carrier on purpose.
+    rather than a ceiling.** ``deg Φ_M = φ(M)`` must be at most
+    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_DEGREE` (888), so an exact sample
+    at ``n = 449`` on a basis axis (``Φ_1796``, degree 896) raises rather than
+    answering from a rounded angle, while ``n = 450`` (degree 240) answers.
+    Since ``M`` depends on the AXIS WIDTH the admissible set does too, and it
+    is not an interval: MEASURED over ``n`` in 1..128, ``axis_k`` 1 / 3 / 7
+    admit **128 / 128 / 114** lengths, the only refusals being fourteen on the
+    ``1/√7`` axis with the first at ``n = 79`` (``Φ_2212``, degree 936). That
+    is a deliberate break with rc467, which answered — inexactly, wearing the
+    exact carrier. Pass a float sample to elect the float carrier on purpose.
+    rc478 (`#T1188`) moved the criterion from ``M`` to ``φ(M)``; the rc468
+    counts 96 / 60 / 30 were correct for the index rule they described.
 
     ⚠️ **Projection divergence, named.** The C compose host's twin of this
     step (``cr_op_qdft_summand``) coerces to doubles and has no rational value
@@ -1345,8 +1363,9 @@ def qdft_summand(xs, k: int, m: int, n: int, left: bool, sigma: int,
         ValueError: on an EXACT sample only — an axis with no exact unit in
             the shipped fields (a direction whose real component is nonzero,
             or whose ``‖μ̂‖²`` is not 1, 3 or 7 times a rational square), or a
-            field index ``M = lcm(n, 4 | 12 | 28)`` above
-            :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` (256), which is a
+            field ``Φ_M`` with ``M = lcm(n, 4 | 12 | 28)`` whose DEGREE
+            ``φ(M)`` is above
+            :data:`srmech.math.qalg.MAX_CYCLOTOMIC_DEGREE` (888), which is a
             SIEVE over ``n`` and not a ceiling. Both refuse rather than
             electing the float carrier behind the caller's back; a float
             sample elects it deliberately. Under execution in
@@ -1414,9 +1433,9 @@ def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
     float route puts it — ``(μ̂ ⊗ x) ⊗ ν̂`` versus ``μ̂ ⊗ (x ⊗ ν̂)`` — so 𝕆's
     non-associativity is untouched and ``cd_mult`` still sees only exact ``ℚ``.
     ``list[Q]`` where the cosine and the SCALED sine are both rational,
-    ``list[Qalg]`` on every other turn; it RAISES when
-    ``M = lcm(n, 4 | 12 | 28)`` exceeds
-    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` — a SIEVE over ``n``, not a
+    ``list[Qalg]`` on every other turn; it RAISES when the DEGREE
+    ``φ(M)`` of ``Φ_M``, ``M = lcm(n, 4 | 12 | 28)``, exceeds
+    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_DEGREE` — a SIEVE over ``n``, not a
     ceiling (see :func:`qdft_summand`). Since rc469 (`#T1188`) the axis is read
     by :func:`_exact_summand_axis` rather than by :func:`_exact_mu_q` alone, so
     ``'ijk'`` (``axis_k = 3``) and ``'diagonal'`` (``axis_k = 7``) are exact
@@ -1438,7 +1457,8 @@ def odft_summand(xs, k: int, m: int, n: int, form: str, bracketing: str,
     Raises:
         ValueError: on an EXACT sample only — the two conditions
             :func:`qdft_summand` refuses (no exact unit for the direction; a
-            field index above :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX`),
+            field DEGREE above
+            :data:`srmech.math.qalg.MAX_CYCLOTOMIC_DEGREE`),
             and one more that is 8-wide and two-sided: a MIXED-WIDTH axis
             PAIR. One sine scalar cannot carry two different irrational
             scales, and their compositum ``ℚ(√3, √7)`` is not a simple
@@ -2125,10 +2145,10 @@ def _exact_turn_plan(streams, axis, k_turn: int, n_turn: int):
                 f"fields normalise exactly); got {axis!r}")
     weights, axis_k = resolved
     index = _qalg._turn_field_index(n_turn, axis_k)
-    if index > _qalg.MAX_CYCLOTOMIC_INDEX:
+    too_big = _qalg._field_too_big(index)
+    if too_big is not None:
         return (f"turn=({k_turn}, {n_turn}) on this axis needs "
-                f"Q(zeta_{index}), above the measured "
-                f"MAX_CYCLOTOMIC_INDEX={_qalg.MAX_CYCLOTOMIC_INDEX} field cap")
+                f"Q(zeta_{index}) {too_big}")
     return q_ex, octonion, weights, axis_k
 
 
@@ -2314,8 +2334,8 @@ def hypercomplex_couple(
     and the C Q61 answer are equal as rationals (measured, 24 settings).
 
     ⚠️ An explicit ``turn`` REFUSES rather than rounding: a non-exact operand,
-    an axis with no exact unit over ℚ, or a field index above
-    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_INDEX` all raise, naming which. The
+    an axis with no exact unit over ℚ, or a field whose DEGREE is above
+    :data:`srmech.math.qalg.MAX_CYCLOTOMIC_DEGREE` all raise, naming which. The
     DEFAULT phase runs the same election and reads a refusal as the operand's
     carrier instead — the difference is what the CALLER asked for, never what
     the op computes. ``turn`` and ``theta`` are two spellings of one phase and

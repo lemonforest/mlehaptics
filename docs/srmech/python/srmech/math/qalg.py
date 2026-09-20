@@ -69,27 +69,73 @@ from __future__ import annotations
 
 from .cyclic import gcd as _gcd
 from .poly import cyclotomic_polynomial
+from .primes import factor as _factor
 from .q import Q
 
 __all__ = [
-    "MAX_CYCLOTOMIC_INDEX",
+    "MAX_CYCLOTOMIC_DEGREE",
     "Qalg",
     "cos_sin_2pi_k_over_n",
 ]
 
-#: The measured index cap of :func:`cos_sin_2pi_k_over_n` and of the exact
-#: twiddle routes built on it. The cost is set by the DEGREE of the field the
-#: op builds (``φ`` of the cyclotomic index), and exact ``Q``
-#: multiplication in a degree-``d`` field is ``O(d²)`` rational operations.
-#: Measured on this tree at the cap (on the rc463 pair this constructor
-#: subsumes, whose fields it reproduces): the cosine half worst case
-#: ``n = 255`` at 0.06 s; the sine half worst case ``n = 251`` (field
-#: ``Φ_1004``, degree 500) at 1.20 s. One index above the cap, ``n = 257``,
-#: already puts the sine in a degree-512 field at 1.64 s, and ``n = 509`` at
-#: 6.40 s. The cap
-#: matches the sibling ``srmech.math.laplacian.cyclic_laplacian_spectrum``,
-#: which bounds the SAME ℚ(ζ_n) carrier at the same 256 for the same reason.
-MAX_CYCLOTOMIC_INDEX = 256
+#: The measured field-**DEGREE** cap of :func:`cos_sin_2pi_k_over_n` and of the
+#: exact twiddle routes built on it — an upper bound on
+#: ``φ(M) = deg Φ_M``, never on the index ``M`` itself.
+#:
+#: **Why the DEGREE and not the index (0.9.0rc478, `#T1188`).** Everything the
+#: cap exists to bound is a function of ``d = φ(M)`` and NONE of it is a
+#: function of ``M``: the coordinate-vector length is ``d``, an exact ``Q``
+#: multiply in the field is ``O(d²)`` rational operations, and the answer's
+#: resident size is ``d``-linear (MEASURED at ``0.000793–0.000808`` MiB per
+#: degree on the ``1/√7`` axis at two degrees). Bounding ``M`` therefore
+#: refused and admitted the wrong objects in BOTH directions, measured on this
+#: tree at the rc477 constant ``MAX_CYCLOTOMIC_INDEX = 256``:
+#: ``cos_sin_2pi_k_over_n(251)`` was ADMITTED into ``Φ_1004`` at degree
+#: **500**, while ``n = 23`` on the ``1/√3`` axis (``Φ_276``, degree **88** —
+#: five times smaller, and measured faster) was REFUSED. :func:`_cyclotomic_degree`
+#: is the quantity this constant bounds, and the guard computes it from the
+#: factorisation without ever building ``Φ_M``.
+#:
+#: **Why 888 — derived, not preferred.** ``888 = φ(2676) = φ(lcm(669, 4)) =
+#: φ(lcm(669, 12))`` is exactly the degree of the **Exeligmos** field (the
+#: 669-year Antikythera back-panel period), which is also the **Saros** field
+#: on the quaternion body diagonal. It is the SMALLEST bound that admits it:
+#: at ``φ ≤ 864`` Exeligmos still refuses on every axis. Rounding up to 1024
+#: covers nothing further that is asked for and makes the dearest admitted
+#: call **3.30× dearer** — MEASURED, interleaved and non-overlapping: the
+#: worst admitted ``axis_k = 7`` row goes from 44.7 s at ``φ ≤ 888`` to
+#: 147.4 s at ``φ ≤ 1024``.
+#:
+#: **What it admits.** All four canonical Antikythera dial periods — Saros
+#: 223, Metonic 235, Callippic 940 and Exeligmos 669 — on BOTH cheap axes
+#: (``axis_k`` 1 and 3), and 128 of 128 ``n ≤ 128`` on those two axes (114 of
+#: 128 on ``axis_k = 7``). Against the rc477 predicate the change is a STRICT
+#: widening: **0 of 12288** ``(n ≤ 4096) × (axis_k ∈ {1,3,7})`` rows lost,
+#: 2118 gained.
+#:
+#: **What it still refuses, named.** Exeligmos on the equal-weight octonion
+#: axis: ``octonion_twiddle(1, 1, 669, mu="diagonal", exact=True)`` builds
+#: ``Φ_18732`` at degree **5328** — six times the degree, because that index
+#: carries a factor 7 the cheap axes do not — and the refusal says so. A named
+#: refusal with its degree in it, never a silent demotion to the float route.
+#:
+#: **φ bounds the OBJECT and NOT the clock.** At one IDENTICAL degree the
+#: admitted cost still spans **98×** (MEASURED, ``axis_k = 7``, ``φ = 768``
+#: both: ``n = 256`` at 7 terms → 0.36 s against ``n = 85`` at 253 terms →
+#: 35.7 s), because the sparsity of ``Φ_M`` is not a function of its degree. A
+#: SECOND admission criterion was measured and REJECTED for exactly that
+#: reason — a per-axis degree bound would have to refuse that 0.36 s answer in
+#: order to block the 35.7 s one.
+#:
+#: **The sibling constant is a DIFFERENT quantity and does not move.**
+#: ``srmech.math.laplacian.MAX_CYCLIC_SPECTRUM_N = 256`` bounds ``n`` for
+#: ``cyclic_laplacian_spectrum``, whose field is ``Φ_n`` at degree ``φ(n)``;
+#: this one bounds ``φ(lcm(n, base))`` for ``base ∈ {4, 12, 28}``. Through
+#: rc477 this block claimed the two "match at the same 256 for the same
+#: reason" — they never bounded the same quantity, and the raise makes the
+#: sentence false as well as imprecise, so it is RETRACTED here rather than
+#: renumbered.
+MAX_CYCLOTOMIC_DEGREE = 888
 
 _Q_ZERO = Q(0, 1)
 _Q_ONE = Q(1, 1)
@@ -567,22 +613,147 @@ class Qalg:
 
 
 # ── cyclotomic trigonometry (rc463, `#T1188`) ────────────────────────────────
+def _cyclotomic_degree(index: int) -> int:
+    """``deg Φ_index = φ(index)`` — the DEGREE of the cyclotomic field
+    ``ℚ(ζ_index)``, and the quantity :data:`MAX_CYCLOTOMIC_DEGREE` bounds.
+
+    Computed from the factorisation alone,
+    ``φ(∏ pᵢ^eᵢ) = ∏ pᵢ^(eᵢ−1)·(pᵢ − 1)``, so it costs one
+    :func:`srmech.math.primes.factor` call and **never builds** ``Φ_index``.
+    That is the whole point of it: an admission guard has to answer *"how big
+    is the object this call would construct?"* BEFORE paying for it, and
+    :func:`~srmech.math.poly.cyclotomic_polynomial` at index 18732 is
+    precisely the cost the guard exists to refuse. MEASURED at rc478: 2.1 µs
+    per call at index 18732, against a polynomial build of that degree.
+
+    **NOT a registered op, and PRIVATE, deliberately** — the same ruling
+    :func:`_inv_sqrt_k` records for itself, on the same two grounds. It is
+    sugar over :func:`srmech.math.primes.factor` and one multiplicative loop;
+    and the number it returns is ALREADY published on the registered surface,
+    as :func:`~srmech.math.poly.cyclotomic_polynomial`'s ``"degree"`` key. A
+    public ``cyclotomic_degree`` would therefore be a second op for a
+    quantity that already ships, which is the duplicate shape this tree
+    removes rather than adds. What rc478 (`#T1188`) needed was not a new
+    published quantity but a CHEAP ROUTE to an existing one, for a guard that
+    must not pay for the polynomial — so it lands beside
+    :func:`_cyclotomic_m` and :func:`_turn_field_index` as module-private
+    arithmetic. (The registry-completeness ratchet,
+    ``tests/test_registry_completeness_rc416.py``, is what makes that a
+    decision rather than an omission: a public ``__all__`` callable with no
+    ``ToolEntry`` goes red, so the surface cannot trickle.)
+
+    ``_cyclotomic_degree(1) == 1`` (``Φ_1 = x − 1``). MEASURED agreement with
+    ``len(cyclotomic_polynomial(M)) - 1`` over ``M = 1..1200``: 1200 of 1200,
+    0 disagreements; the same comparison against a shifted index disagrees at
+    193 of 198, so the instrument can return otherwise.
+
+    Class J (the prime factorisation) ∘ Class I (the multiplicative product).
+    No float, no series, no ``abs``.
+
+    Args:
+        index: the cyclotomic index ``M >= 1``.
+
+    Returns:
+        ``φ(M)`` as an ``int`` — the ℚ-dimension of ``ℚ(ζ_M)``.
+
+    Raises:
+        TypeError: if ``index`` is not a plain ``int`` (``bool`` included —
+            ``True`` is not the index 1).
+        ValueError: if ``index < 1``.
+    """
+    if isinstance(index, bool) or not isinstance(index, int):
+        raise TypeError(
+            "_cyclotomic_degree: index must be a plain int (the cyclotomic "
+            f"index); got {type(index).__name__}")
+    if index < 1:
+        raise ValueError(f"_cyclotomic_degree requires index >= 1; got {index}")
+    degree = 1
+    for prime, power in _factor(index):
+        degree *= (prime - 1) * prime ** (power - 1)
+    return degree
+
+
+#: The index above which a field is CERTAINLY over the degree cap, so the
+#: guard can refuse it without factoring. ``φ(M) ≥ √(M/2)`` for every
+#: ``M ≥ 1``, so ``φ(M) ≤ P`` forces ``M ≤ 2P²``.
+#:
+#: **Why this exists (0.9.0rc478, `#T1188`) — it repairs a regression this
+#: same rc introduced.** Moving the criterion from the index to the degree
+#: means the guard must SIZE the field before refusing it, and sizing means
+#: factoring. ``srmech.math.primes.factor`` is trial division, so the refusal
+#: cost grew as ``√n``: MEASURED on this tree, `cos_sin_2pi_k_over_n` refused
+#: ``n = 10¹¹`` in 55 ms, ``n = 10¹⁵`` in 2.36 s and ``n = 2⁶² − 57`` in
+#: **211.8 s** — where rc477's index comparison refused all three in
+#: microseconds. Nothing is wrong with the ANSWER; what regressed is how long
+#: a refusal takes, and a three-minute refusal on a public op is a defect
+#: whether or not anyone passes that ``n``. The two twiddle routes were far
+#: less exposed and the reason is worth recording rather than glossing: their
+#: own ``_TWIDDLE_N_MAX = 2**32`` refuses first, capping their worst
+#: factorisation at ``√(28·2³²)`` and their worst refusal at tens of ms. The
+#: routes that could actually reach the pathological case were
+#: :func:`cos_sin_2pi_k_over_n` and ``hypercomplex_exp``'s ``turn=``, neither
+#: of which bounds ``n`` at all.
+#:
+#: Refusing above ``2P²`` restores a constant-time refusal for every large
+#: ``n`` and **cannot change a verdict**: no admissible index reaches it. That
+#: is checked two ways rather than asserted — the inequality is verified
+#: directly over the whole range, and ``max{M : φ(M) ≤ P}`` is measured to be
+#: **3990**, which is 395× below this bound.
+_DEGREE_CERTAIN_INDEX_MAX = 2 * MAX_CYCLOTOMIC_DEGREE * MAX_CYCLOTOMIC_DEGREE
+
+
+def _field_too_big(index: int):
+    """``None`` when ``Φ_index`` is inside :data:`MAX_CYCLOTOMIC_DEGREE`, else
+    the phrase naming what exceeded it — the SHARED refusal vocabulary of all
+    six admission guards, so they cannot drift apart.
+
+    Two shapes, and the difference is honest rather than cosmetic. Below
+    :data:`_DEGREE_CERTAIN_INDEX_MAX` the degree is COMPUTED and named
+    exactly. Above it the degree is not computed at all — factoring is what
+    costs — so the phrase says the degree is over the cap and names the
+    certificate instead of inventing a number.
+
+    Class J (the factorisation, when it is worth doing at all)."""
+    if index > _DEGREE_CERTAIN_INDEX_MAX:
+        return (f"of a degree above the measured "
+                f"MAX_CYCLOTOMIC_DEGREE={MAX_CYCLOTOMIC_DEGREE} field cap "
+                f"(certified without factoring: phi(M) >= sqrt(M/2), so an "
+                f"admitted index cannot exceed "
+                f"{_DEGREE_CERTAIN_INDEX_MAX}, and the largest one that "
+                f"actually is admitted is 3990)")
+    degree = _cyclotomic_degree(index)
+    if degree > MAX_CYCLOTOMIC_DEGREE:
+        return (f"of degree {degree}, above the measured "
+                f"MAX_CYCLOTOMIC_DEGREE={MAX_CYCLOTOMIC_DEGREE} field cap")
+    return None
+
+
 def _validated_index(n, where: str) -> int:
-    """The shared Class-J index guard for the cyclotomic trig constructors.
+    """The shared Class-J DEGREE guard for the cyclotomic trig constructors.
 
     ``n`` must be a plain ``int`` (``bool`` is refused — ``True`` is not the
-    index 1), at least 1, and at most :data:`MAX_CYCLOTOMIC_INDEX`. Returns
-    ``n`` so the caller can use the guard inline."""
+    index 1) and at least 1, and the field the caller then builds —
+    ``Φ_lcm(n, 4)``, the one field :func:`cos_sin_2pi_k_over_n` answers over —
+    must have degree at most :data:`MAX_CYCLOTOMIC_DEGREE`.
+
+    **The bound is on the DEGREE, not on ``n`` (0.9.0rc478, `#T1188`).**
+    Through rc477 this guard read ``n > MAX_CYCLOTOMIC_INDEX``, which is a
+    bound on a quantity no cost depends on; ``n`` itself is now unbounded
+    above and what refuses is the SIZE of the object. The refusal names the
+    index it would have built and its degree, so a caller can see what bound.
+
+    Returns ``n`` so the caller can use the guard inline."""
     if isinstance(n, bool) or not isinstance(n, int):
         raise TypeError(
             f"{where}: n must be a plain int (the cyclotomic index); "
             f"got {type(n).__name__}")
     if n < 1:
         raise ValueError(f"{where} requires n >= 1; got {n}")
-    if n > MAX_CYCLOTOMIC_INDEX:
+    index = 4 * n // _gcd(n, 4)
+    too_big = _field_too_big(index)
+    if too_big is not None:
         raise ValueError(
-            f"{where} requires n <= {MAX_CYCLOTOMIC_INDEX} "
-            f"(the measured field-degree cap); got {n}")
+            f"{where}: n={n} builds Q(zeta_{index}) {too_big}")
     return n
 
 
@@ -846,6 +1017,32 @@ def _cos_sin_in_field(index: int, n: int, k: int):
     return cos, sin
 
 
+#: The ``1/√k`` memo — keyed ``(k, index)``, and a plain dict for the SAME
+#: load-bearing reason :data:`_PHI_CACHE` is one: ``functools.lru_cache``
+#: replaces the function object with a wrapper, and ``tests/composes_derive.py``
+#: resolves a declared ``composes`` edge by walking the AST of the caller and
+#: descending into the callee it resolves — a wrapper is not the ``FunctionDef``
+#: it looks for. ``hypercomplex_dft._exact_turn_pair``'s ``lru_cache`` is the
+#: shape that must not be copied here.
+#:
+#: ``Qalg`` is immutable (``__slots__``, a tuple of ``Q`` coordinates), so the
+#: memo hands back the SAME object rather than a copy, and the memoised and
+#: unmemoised values are equal under both ``==`` and ``is``.
+#:
+#: **Why it ships in the same commit as the degree cap (0.9.0rc478, `#T1188`).**
+#: ``_inv_sqrt_k`` is a pure function of two ints that the turn loop
+#: recomputes on EVERY turn, and MEASURED on this tree it is where the cost of
+#: a raised cap actually lives: 0.0 % of the whole twiddle at ``axis_k = 1``
+#: (it is not called at all — see :func:`_turn_scalars`), 56.7 % at the
+#: Exeligmos ``axis_k = 3`` row and **69.9 %** at the dearest admitted row.
+#: Per turn after the first that is a saving of **0 % (the k=1 control) /
+#: 53.5 % (Exeligmos on the body diagonal) / 80.2 % (the dearest admitted
+#: row)**. Residency is bounded and small: at ``φ ≤ 888`` the worst case is
+#: **345 keys** (249 with ``12 | M``, 96 with ``28 | M``) at a measured
+#: 52.6–64.5 bytes per degree, so no eviction policy is needed.
+_INV_SQRT_K_CACHE: dict = {}
+
+
 def _inv_sqrt_k(k: int, index: int) -> "Qalg":
     """``1/√k`` for ``k ∈ {1, 3, 7}`` as an exact :class:`Qalg` over
     ``Φ_index`` — the equal-weight hypercomplex axis normaliser, EXACT where
@@ -865,10 +1062,23 @@ def _inv_sqrt_k(k: int, index: int) -> "Qalg":
     (``quaternion_twiddle(..., exact=True)``,
     ``octonion_twiddle(..., exact=True)``,
     ``hypercomplex_exp(k_axes=..., turn=(k, n))``).
+
+    MEMOISED on ``(k, index)`` through :data:`_INV_SQRT_K_CACHE` since
+    0.9.0rc478 (`#T1188`) — a pure function of two ints that the turn loop
+    would otherwise rebuild on every turn, and MEASURED as 56.7–77.8 % of the
+    whole exact twiddle on the two scaled axes. The memo cannot shorten the
+    FIRST call, because the first call is the one that builds it.
+
     Class J ∘ N; the Legendre sign is a Class-K pin-slot, never ``abs``."""
+    memo_key = (k, index)
+    hit = _INV_SQRT_K_CACHE.get(memo_key)
+    if hit is not None:
+        return hit
     omega = Qalg.alpha(_cyclotomic_m(index))
     if k == 1:
-        return omega.one()
+        one = omega.one()
+        _INV_SQRT_K_CACHE[memo_key] = one
+        return one
     if k == 3:
         z12 = omega ** (index // 12)
         root = z12 + z12.inverse()                  # √3 = 2·cos(2π/12)
@@ -882,7 +1092,9 @@ def _inv_sqrt_k(k: int, index: int) -> "Qalg":
         root = root * (omega ** (index // 4)).inverse()      # g/i = √7
     else:
         raise ValueError(f"_inv_sqrt_k: k must be 1, 3 or 7; got {k!r}")
-    return root.inverse()
+    inv = root.inverse()
+    _INV_SQRT_K_CACHE[memo_key] = inv
+    return inv
 
 
 def _narrow(v):
@@ -997,9 +1209,14 @@ def cos_sin_2pi_k_over_n(n: int, k: int = 1) -> "tuple":
     No ``abs``, no ``math``, no float, no series.
 
     Args:
-        n: the turn denominator / cyclotomic index,
-            ``1 <= n <= MAX_CYCLOTOMIC_INDEX`` (256). ``TypeError`` for a
-            non-``int`` (``bool`` included); ``ValueError`` outside the range.
+        n: the turn denominator, ``n >= 1``, admitted when the field it
+            builds is small enough:
+            ``cyclotomic_degree(lcm(n, 4)) <= MAX_CYCLOTOMIC_DEGREE`` (888).
+            **That is a SIEVE over ``n``, not a ceiling** — the largest
+            admitted ``n`` is 3780, and some smaller ``n`` above it refuse
+            while larger ones do not. ``TypeError`` for a non-``int``
+            (``bool`` included); ``ValueError`` for ``n < 1`` or for a field
+            above the degree cap, naming the index and the degree.
         k: the turn numerator (any ``int``; reduced mod ``n``). Default ``1``,
             which is the plain ``2π/n`` turn the two removed rc463
             constructors answered at.
