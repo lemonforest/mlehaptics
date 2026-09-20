@@ -121,8 +121,12 @@ def coupled_wave(
       ``3/2``.
 
     The Class-K sign branch between the door and the trig call is lossless on
-    both carriers. Either way the returned legs are an APPROXIMATION of the
-    trig value — a rational that says nothing about the angle the caller held
+    both carriers. **Either way there is a rounding, and the carrier only
+    decides where it happens**: a float ``theta`` is rounded to float64 at the
+    trig op's own door and the Q61 reduction truncates after it; an exact
+    ``theta`` skips the first rounding and keeps the second, at 61 fractional
+    bits. So the returned legs are an APPROXIMATION of the trig value on both
+    carriers — a rational that says nothing about the angle the caller held
     beyond the carrier they elected. The rc472 census row
     ``coupled_wave::theta`` stays DEMOTED in both cells on the float carrier,
     which is the row it was measured on.
