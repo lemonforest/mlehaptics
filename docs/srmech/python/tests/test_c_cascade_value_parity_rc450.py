@@ -147,6 +147,7 @@ import pytest
 import srmech._native as _native
 from srmech.cascade import compose as _compose
 from srmech.dsl import _catalog as _cat
+from tests import _carrier_projection
 from srmech.dsl import _cascade_chain as _cc
 from srmech.dsl._cascade_chain import cascade_chain_specs
 from srmech.math.q import Q
@@ -414,6 +415,32 @@ def _chain_only(entry):
     return out
 
 
+#: ONE carrier for the comparison — see ``tests/_carrier_projection.py`` for
+#: why this exists, what it scopes this file to, and the two ways an
+#: unprojected harness got it wrong. It is imported rather than copied
+#: because the rc446 ratchet needs the identical projection and this file
+#: cross-ties itself to that ratchet's verdict.
+_double_projection = _carrier_projection.double_projection
+
+
+def _one_carrier(entry):
+    """``(entry, spec)`` both in the DOUBLE projection (rc479, `#T1188`).
+
+    The chain DOCUMENT carries bound literals too, not just the case inputs,
+    and under contract A those are exact ``Q`` as well — measured, every one
+    of ``best_rational_signed`` / ``kuramoto_step`` / ``quaternion_dft`` /
+    ``octonion_dft`` failed ``json.dumps`` on the CHAIN while their inputs
+    marshalled fine. Projecting the inputs alone would have driven C from
+    doubles and Python from exact literals, which is the one-carrier rule
+    broken in the other half.
+
+    The spec is RE-PARSED from the projected document rather than reused, so
+    the Python side executes the same numbers the C side was handed.
+    """
+    ent = _double_projection(entry)
+    return ent, _compose.parse_chain_spec(_chain_only(ent))
+
+
 def _c_run(chain_dict, ctx):
     """(rc, wire_bytes, serialisable). ``serialisable`` False means the inputs
     cannot be spelled as RFC 8259 JSON, so C was never called."""
@@ -497,6 +524,10 @@ def _measure_all():
     """Run the whole population once. Returns (rows, tally, per_chain)."""
     rows, tally, per_chain = [], {}, {}
     for name, variant, entry, spec, j, inputs in _population():
+        # rc479 (`#T1188`): ONE carrier for both projections — see
+        # _double_projection for why, and for what that scopes this file to.
+        entry, spec = _one_carrier(entry)
+        inputs = _double_projection(inputs)
         rc, wire, ok = _c_run(_chain_only(entry), inputs)
         py = None
         if ok and rc == 0:
@@ -661,6 +692,8 @@ def test_an_executed_case_emits_the_tuple_kind_itself():
     _variant, _spec, entry = cascade_chain_specs("best_rational_signed")[0]
     cases = entry.get("proof_cases") or []
     inputs = dict((cases[0] or {}).get("inputs") or {})
+    entry, _spec = _one_carrier(entry)   # rc479 (`#T1188`): one carrier
+    inputs = _double_projection(inputs)
     rc, wire, ok = _c_run(_chain_only(entry), inputs)
     assert ok and rc == 0, (
         "best_rational_signed did not run in C (ok=%r rc=%r). rc451 closed this "
@@ -712,6 +745,8 @@ def test_an_executed_case_emits_the_bytes_kind_itself():
     cases = entry.get("proof_cases") or []
     inputs = dict(_case_defaults(entry))
     inputs.update(dict((cases[1] or {}).get("inputs") or {}))   # the D = 256 case
+    entry, _spec = _one_carrier(entry)           # rc479 (`#T1188`)
+    inputs = _double_projection(inputs)
     rc, wire, ok = _c_run(_chain_only(entry), inputs)
     assert ok and rc == 0, (
         "encode_loe_content did not run in C (ok=%r rc=%r). rc452 Phase 2 "
@@ -763,6 +798,8 @@ def test_an_executed_case_emits_the_matrix_kind_itself():
     cases = entry.get("proof_cases") or []
     inputs = dict(_case_defaults(entry))
     inputs.update(dict((cases[1] or {}).get("inputs") or {}))   # the `path4` case
+    entry, _spec = _one_carrier(entry)           # rc479 (`#T1188`)
+    inputs = _double_projection(inputs)
     rc, wire, ok = _c_run(_chain_only(entry), inputs)
     assert ok and rc == 0, (
         "schur_complement did not run in C (ok=%r rc=%r). rc452 Phase 2 closed "

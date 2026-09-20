@@ -81,6 +81,7 @@ import srmech
 from srmech.cascade import compose as _compose
 from srmech.dsl import _cascade_chain as _cc
 from srmech.dsl import _catalog as _cat
+from tests import _carrier_projection
 
 # ── down-only ceilings, seeded at the MEASURED rc445 population ──────────────
 # Re-measured at rc445 by notes/_1653_chain_census_rc444.py:
@@ -429,10 +430,17 @@ def _c_runs(chain_dict, ctx):
     lib = _compose._compose_lib("srmech_chain_run", "srmech_chain_run_arena_bytes")
     if lib is None:
         pytest.skip("no native library — this gate measures the C projection")
+    # rc479 (`#T1188`): ONE carrier. Contract A makes a descriptor's
+    # literals exact, and C has no exact route — see
+    # tests/_carrier_projection.py. Unprojected, EIGHT of the eighteen
+    # chains reclassified from accepted to REJECTED on a marshal failure,
+    # which is a harness gap wearing a verdict's name.
     try:
+        chain_dict = _carrier_projection.double_projection(chain_dict)
+        ctx = _carrier_projection.double_projection(ctx)
         cj = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
         xj = json.dumps({"inputs": ctx}, ensure_ascii=False).encode("utf-8")
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None, "PY_JSON_DUMPS_FAILED"
     ws_bytes = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
     ws = (ctypes.c_char * ws_bytes)()
