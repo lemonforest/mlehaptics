@@ -42,12 +42,61 @@ from tests._native_gate import require_native
 
 
 def _c_float(tok: str):
-    """The double srmech_toml's C parser yields for ``x = <tok>`` (native path)."""
-    got = _native.toml_loads_c("x = " + tok)
-    assert got is not None, (
-        f"C parser DECLINED float token {tok!r} — since rc397 every float token "
-        f"must self-host on the correctly-rounded native parse, not decline")
-    return got["x"]
+    """The double ``srmech_toml``'s C parser yields for ``x = <tok>``.
+
+    ⚠️ **rc479 (`#T1188`) changed the INSTRUMENT here, not the claim.**
+    This read the double back through :func:`srmech._native.toml_loads_c`,
+    which is the ctypes TREE-WALK. Under contract A that walk DECLINES any
+    document carrying a float literal, because no C value layer in this library
+    holds a rational (``dv_value_t`` and ``srmech_mval_t`` are both ``double``)
+    and handing the caller the projection would make a native cell answer
+    differently from a pure one. So the old route now returns ``None`` for
+    every token in the battery below — an instrument artifact, not a parse
+    regression.
+
+    **rc397's claim is untouched and still worth gating**: the C decimal
+    → double scan is correctly rounded, token for token, against
+    ``float(tok)``. A C host reads that double by calling the export, so this
+    does too — the parse tree is walked directly to the ``x`` node's
+    ``u.f``, one level down from the root table. Same parser, same token, same
+    question; only the reader changed.
+    """
+    import ctypes
+    raw = ("x = " + tok).encode("utf-8")
+    n = len(raw)
+    ws_len = max(65536, 256 * n)
+    ws = ctypes.create_string_buffer(ws_len)
+    out = ctypes.POINTER(_native._TomlValue)()
+    rc = int(_native.LIB.srmech_toml_parse(
+        raw, ctypes.c_size_t(n), ctypes.cast(ws, ctypes.c_void_p),
+        ctypes.c_size_t(ws_len), ctypes.byref(out)))
+    assert rc == _native.SRMECH_OK, (
+        f"srmech_toml_parse REFUSED float token {tok!r} with status {rc} — "
+        f"since rc397 every token in this battery must parse, and rc479's "
+        f"digit bound is far above all of them")
+    root = out.contents
+    assert root.type == _native.SRMECH_TOML_TABLE, root.type
+    keys, vals = root.u.tbl.keys, root.u.tbl.vals
+    for k in range(root.u.tbl.n):
+        if keys[k].decode("utf-8") == "x":
+            node = vals[k].contents
+            if node.type == _native.SRMECH_TOML_FLOAT:
+                return float(node.u.f)
+            # ⚠️ TWO of the hand-picked battery tokens are BARE INTEGERS
+            # — `9007199254740992` and `9007199254740993`, the 2**53 boundary
+            # pair — so TOML lexes them as INT and they never reach the float
+            # scanner at all. That was invisible while this helper read the
+            # tree-walk's dict, where an int and a float both arrive as a
+            # Python number and `struct.pack("<d", ...)` widens either. It is
+            # recorded rather than removed: the pair is a real boundary and
+            # `float(tok)` is still the right oracle for it; what it is NOT is
+            # evidence about the float scanner, and this comment is the only
+            # place that now says so.
+            if node.type == _native.SRMECH_TOML_INT:
+                return float(node.u.i)
+            raise AssertionError(
+                f"{tok!r} parsed as tag {node.type}, neither FLOAT nor INT")
+    raise AssertionError(f"no `x` key in the parse of {tok!r}")
 
 
 def _bits(x: float) -> bytes:

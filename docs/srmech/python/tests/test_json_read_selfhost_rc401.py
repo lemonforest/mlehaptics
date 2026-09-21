@@ -471,11 +471,38 @@ def test_shallow_document_uses_native():
 
     Every decline test above passes trivially if the native path declines
     EVERYTHING, so pin the positive direction too.
+
+    ⚠️ **rc479 (`#T1188`) moved ONE of these six, and only one.** Under
+    contract A a decimal literal is read as the exact rational it names, and no
+    C value layer in this library can hold a rational (``dv_value_t`` and
+    ``srmech_mval_t`` are both ``double``), so the ctypes tree-walk DECLINES a
+    float-bearing document and the exact Python floor answers it. ``"3.14"`` is
+    that document. The other five carry no float and are untouched, which is
+    what keeps this a positive-direction pin rather than a weakened one: the
+    partition is asserted in BOTH directions, so a native path that starts
+    declining a float-FREE document is still red, and one that starts ACCEPTING
+    a float-bearing one is red too — that would be the native cell serving
+    doubles where the pure cell serves ``Q``.
     """
     require_native("srmech._json native JSON read path")
-    for text in ('{"a":1}', "[1,2,3]", '"hello"', "3.14", "true",
-                 '{"nested":{"deep":[1,2,{"x":"y"}]}}'):
+    float_free = ('{"a":1}', "[1,2,3]", '"hello"', "true",
+                  '{"nested":{"deep":[1,2,{"x":"y"}]}}')
+    for text in float_free:
         assert not _native_declined(text), f"{text!r} should use the native path"
+
+    # the CARRIER decline, and it is a decline of the BINDING, not of the C
+    # parser: `srmech_json_parse` still reads `3.14` correctly-rounded, and
+    # test_exact_text_reader_rc479's G5 reads that verdict at the export.
+    assert _native_declined("3.14"), (
+        "a float-bearing document no longer declines — contract A's carrier "
+        "decline has stopped firing and this native cell is about to serve a "
+        "double where a pure cell serves an exact rational")
+    # and the FLOOR answers it exactly, so the decline costs a parse and never
+    # a value. Decided by the integers, not by a float comparison.
+    got = _json.loads("3.14")
+    assert type(got).__name__ == "Q", type(got).__name__
+    assert got.numerator == 157 and got.denominator == 50, (
+        got.numerator, got.denominator)
 
 
 # --------------------------------------------------------------------------
