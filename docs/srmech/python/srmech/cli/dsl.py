@@ -380,9 +380,27 @@ def _json_safe(value: Any) -> Any:
     Handles the common cascade-output shapes: scalars pass through,
     tuples become lists, numpy arrays become nested lists. Mixed
     payloads are best-effort; anything truly opaque is stringified.
+
+    ⚠️ **rc479 (`#T1188`) — an exact ``Q`` is NOT "truly opaque", and it used
+    to land in that bucket.** Contract A reads ``--input -7.5`` as the exact
+    rational it names, so a chain that used to end in a ``float`` now ends in
+    a ``Q`` and this surface saw one for the first time. The generic
+    ``str(value)`` fallback rendered it ``"15/2"`` — legible, but a STRING,
+    so ``--json`` emitted a quoted token where every other srmech wire (the
+    MCP result, the AMSC record, the C value descriptor) carries the exact
+    ``[num, den]`` integer pair. That is a machine-readability regression on
+    the one flag whose whole purpose is machine readability, so the pair is
+    emitted here too and the shapes agree across surfaces.
+
+    A ``Qalg`` deliberately still stringifies: it has no JSON form at all,
+    which is what the tool-schema lexicon records for it.
     """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
+    num = getattr(value, "numerator", None)
+    den = getattr(value, "denominator", None)
+    if isinstance(num, int) and isinstance(den, int):
+        return [num, den]
     if isinstance(value, tuple):
         return [_json_safe(v) for v in value]
     if isinstance(value, list):

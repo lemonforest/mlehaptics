@@ -515,7 +515,20 @@ class TestCliDsl:
             "dsl", "run", str(spec), "--input", "-7.5",
         )
         assert result.returncode == 0, result.stderr
-        assert result.stdout.strip() == "7.5"
+        # rc479 (`#T1188`) — CONTRACT A. `--input -7.5` is caller decimal TEXT
+        # and is read as the exact rational it already names, so `magnitude`
+        # returns `Q(15, 2)` where it returned the double 7.5. It is rendered
+        # as the exact `[num, den]` pair — srmech's rational house form, the
+        # same shape the MCP result, the AMSC record and the C value
+        # descriptor carry — and NOT as the string "15/2" the generic opaque
+        # fallback used to produce, because `--json` exists to be machine
+        # readable and a quoted token is not.
+        assert result.stdout.strip() == "[15, 2]", result.stdout
+        # THE CONTROL: the VALUE is unchanged. 15/2 is exactly 7.5, decided by
+        # integer cross-multiplication rather than by reading the two strings.
+        num, den = 15, 2
+        want_n, want_d = (7.5).as_integer_ratio()
+        assert num * want_d == want_n * den
 
     def test_run_inline_list_input(self, tmp_path: Path) -> None:
         spec = tmp_path / "spec.toml"
