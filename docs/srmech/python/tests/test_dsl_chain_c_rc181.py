@@ -170,11 +170,39 @@ def test_reorient_native_eq_pure(x, orient):
 @pytest.mark.parametrize("seq", [[1.0, 2.0, 3.0, 4.0], [1, 2, 3], [2.5, -1.5]])
 def test_autocorrelation_native_within_tol(seq):
     """autocorrelation is f64 — native (direct O(n²) sum) vs pure agree WITHIN
-    TOL (~1e-9), NOT byte-identical (the rc171 numeric-atom lesson)."""
+    TOL (~1e-9), NOT byte-identical (the rc171 numeric-atom lesson) — for a
+    seed C has a carrier for.
+
+    ⚠️ **rc479 (`#T1188`): the INT seed is no longer one of those, and a
+    tolerance is exactly the wrong instrument for it.** Contract A gives
+    ``autocorrelation`` an exact rung, so ``[1, 2, 3]`` answers
+    ``[Q(14,1), Q(11,1), Q(11,1)]`` in the pure projection while C answers in
+    ``double`` — and ``pytest.approx`` would call those EQUAL, which is how a
+    carrier divergence hides inside a numeric gate. So the C path DECLINES the
+    non-float seed (``srmech.dsl._chain._EXACT_CAPABLE_OPS``) and this row
+    asserts the decline plus the exactness, rather than a tolerance over two
+    different carriers. The two float seeds are untouched and keep the rc171
+    reading in full.
+    """
     ch = chain("ac").then("autocorrelation")
     native = ch._run_native(seq)
-    assert native is not _NATIVE_MISS
     pure = _pure(ch, seq)
+
+    if not all(isinstance(v, float) for v in seq):
+        assert native is _NATIVE_MISS, (
+            f"the C path RAN for the non-float seed {seq!r} and served "
+            f"{native!r}, where the pure projection serves {pure!r} — a "
+            f"carrier divergence a tolerance cannot see, because "
+            f"pytest.approx compares 14.0 to Q(14, 1) as equal")
+        # the pure answer IS exact, so the decline bought something. Decided by
+        # type and by the integers, never by a float comparison.
+        assert all(type(c).__name__ == "Q" for c in pure), [
+            type(c).__name__ for c in pure]
+        assert [(c.numerator, c.denominator) for c in pure] == [
+            (14, 1), (11, 1), (11, 1)]
+        return
+
+    assert native is not _NATIVE_MISS
     assert native == pytest.approx(pure, rel=1e-9, abs=1e-9)
 
 
