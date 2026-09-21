@@ -1438,7 +1438,23 @@ from srmech.math.text import fold_marks, glyph_stream
 #: than the acceptance narrowed back, and a parameter's type string is frame
 #: text. `rows` is unmoved at 761 through all three.
 WITNESS_RC416 = (
-    "e91cf43bee7223c7b1fb6ac283c3f1a2a65d7f0d897f8bd53f6b5bc9860cf73b")
+    "9923c08b1af4453253bdd76d7e4f0a8524e1b9cecf81ee3ec3cbe14b8270c69c")
+#: was: e91cf43bee7223c7b1fb6ac283c3f1a2a65d7f0d897f8bd53f6b5bc9860cf73b
+#:      (rc478, before rc479 `#T1188` landed contract A. A digest that had NOT
+#:      moved would have been the finding: this rc widens FOUR declared
+#:      parameter/return type strings (`as_quat4` / `as_oct8` gain
+#:      `| list[Qalg]` on both sides, `autocorrelation` and the two DFTs gain
+#:      exact-carrier returns, `coupled_wave::theta` becomes `float | Q`),
+#:      restates two curated `explanation` strings, and rewrites the accuracy
+#:      paragraphs of `coupled_wave` and `correlation_product` — every one of
+#:      which is FRAME TEXT. DETERMINISM re-verified at the re-pin, because a
+#:      witness that moved for the wrong reason is indistinguishable from one
+#:      that moved for the right one: three fresh CPython 3.12.3 interpreters,
+#:      two `_build_frames('all')` calls each — SIX computations, all
+#:      `9923c08b…be14b8270c69c` — each asserting `HAS_NATIVE is False`, so
+#:      the value is not an artefact of native dispatch. `rows` is UNMOVED at
+#:      **761** (732 ops + 29 carriers) in all three, which is the check that
+#:      says PROSE moved and the corpus SHAPE did not.)
 #: was: 849100cbd9bfdf4a0c918125a6fb87833248cc245b801a39cbb8f8cb62f1b84f
 #:      (rc477, before rc478 `#T1188` moved the cyclotomic admission criterion
 #:      from the field INDEX to the field DEGREE. A docstring and a ToolEntry
