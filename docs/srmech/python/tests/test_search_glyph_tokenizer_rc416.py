@@ -1438,7 +1438,24 @@ from srmech.math.text import fold_marks, glyph_stream
 #: than the acceptance narrowed back, and a parameter's type string is frame
 #: text. `rows` is unmoved at 761 through all three.
 WITNESS_RC416 = (
-    "9923c08b1af4453253bdd76d7e4f0a8524e1b9cecf81ee3ec3cbe14b8270c69c")
+    "0cb8e72cbe91b6b05bec3e304ecc3a9743597bb8d606d08907f6af9e4a873968")
+#: was: 9923c08b1af4453253bdd76d7e4f0a8524e1b9cecf81ee3ec3cbe14b8270c69c
+#:      (rc479, before `quaternion_dft`'s curated WORKED BLOCK was RE-RUN. It
+#:      is the second move inside this rc and it is recorded rather than
+#:      folded into the first, because a pin that shows one move where two
+#:      happened cannot be audited. That block's signal is INTEGER bases, so
+#:      contract A takes it onto the exact carrier: it recorded
+#:      `XL[2] = [4.0, 1.22e-16, -4.0, -6.12e-16]` and now records
+#:      `[Q(4, 1), Q(0, 1), Q(-4, 1), Q(0, 1)]` — the round-off terms are
+#:      EXACTLY ZERO, which is the sharpest "value becomes exact" row this rc
+#:      has and it was sitting in shipped documentation a user copies. Every
+#:      number in the re-captured block was PRINTED by executing that block's
+#:      own expressions, never hand-edited, and a FLOAT control was added
+#:      beside it — measured byte-identical to the numbers it replaced, so
+#:      the exactness is the CARRIER and not a change of transform.
+#:      Determinism re-verified again at this second re-pin: three fresh
+#:      interpreters, six computations, all `0cb8e72c…af9e4a873968`, `rows`
+#:      UNMOVED at 761.)
 #: was: e91cf43bee7223c7b1fb6ac283c3f1a2a65d7f0d897f8bd53f6b5bc9860cf73b
 #:      (rc478, before rc479 `#T1188` landed contract A. A digest that had NOT
 #:      moved would have been the finding: this rc widens FOUR declared
