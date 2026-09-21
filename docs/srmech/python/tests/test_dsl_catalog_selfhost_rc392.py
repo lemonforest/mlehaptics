@@ -16,12 +16,16 @@ What this file certifies, distinct from the rc391 oracle (which pinned
   synthetic ``_provenance`` / ``_source`` keys the loaders add) to a DIRECT
   ``tomllib`` parse of the same descriptor files — i.e. routing the parse through
   ``srmech._toml`` changed nothing observable about the built-in catalogs.
-* **The C parser self-hosts the ENTIRE catalog corpus** (native-guarded via
-  ``require_native`` — the `#T843` / `#T1004` contract). As of rc397 (`#T1066`)
-  the C decimal→double parse is correctly-rounded, so ``best_rational_signed.toml``
-  (``dead_band = 1e-12``) self-hosts too — the float boundary that used to force
-  it to tomllib is closed. Every cascade descriptor and all four class
-  descriptors self-host on ``srmech_toml`` and equal the stdlib parse.
+* **The C parser self-hosts every FLOAT-FREE descriptor, and declines exactly
+  the float-bearing ones** (native-guarded via ``require_native`` — the `#T843`
+  / `#T1004` contract). rc397 (`#T1066`) made the C decimal→double parse
+  correctly-rounded and closed the PRECISION decline; that is unchanged and not
+  retracted. rc479 (`#T1188`) opened a different one: under contract A the front
+  door reads a decimal literal as the exact rational it names, and no C value
+  layer in this library can hold a rational, so a float-bearing document is
+  DECLINED to the exact Python floor rather than answered in ``double``. It is a
+  CARRIER decline, and it is what keeps a native cell and a pure cell returning
+  the same object. All four class descriptors carry no float and self-host.
 * **A malformed descriptor still raises the same error type as before** —
   ``tomllib.TOMLDecodeError`` — through the repointed loaders (the C path
   DECLINES a syntactically broken doc and rides the stdlib parse, which raises).
@@ -40,7 +44,8 @@ import srmech
 from srmech import _native
 from srmech import _toml as srmech_toml_frontdoor
 from srmech.dsl import _catalog, _class_catalog
-from srmech.math.q import parse_float_exact   # rc479 (`#T1188`): contract A
+from srmech.math.q import Q as _Q            # rc479 (`#T1188`): contract A
+from srmech.math.q import parse_float_exact  # rc479 (`#T1188`): contract A
 from tests._native_gate import require_native
 
 if sys.version_info >= (3, 11):
@@ -53,10 +58,13 @@ else:  # pragma: no cover — 3.10 back-port
 #: ``tomllib`` parse carries neither, so they are stripped before comparison.
 _SYNTHETIC = ("_provenance", "_source")
 
-#: The one cascade descriptor that carries a float (``best_rational_signed.toml``,
-#: ``dead_band = 1e-12``). It USED to decline to tomllib (the old libm-free
-#: accumulator was 1 ULP off); rc397 (`#T1066`) made the C float parse
-#: correctly-rounded, so it now self-hosts like every other descriptor.
+#: A cascade descriptor that carries a float (``best_rational_signed.toml``,
+#: ``dead_band = 1e-12``). Its history is two DIFFERENT declines: it declined
+#: pre-rc397 on PRECISION (the old libm-free accumulator was 1 ULP off), rc397
+#: (`#T1066`) closed that, and rc479 (`#T1188`) opens a CARRIER one — contract A
+#: reads that literal as an exact rational and a C ``double`` cannot carry it.
+#: It is named here as a WITNESS, not as the population: the float-bearing set
+#: below is derived from the documents.
 _FLOAT_BEARING_CASCADE = "best_rational_signed.toml"
 
 
@@ -195,11 +203,46 @@ def test_class_catalog_self_hosts_to_the_same_registry() -> None:
 
 # ── the C parser actually self-hosts the catalog corpus (native-guarded) ─────
 
+def _carries_a_float(text: str) -> bool:
+    """Does this document contain a TOML float? Asked of the stdlib LEXER via
+    its ``parse_float`` hook rather than answered from a hand-written list,
+    which would go stale the first time a descriptor gained or lost a literal
+    and would take the partition below down with it."""
+    seen: list[str] = []
+
+    def _note(tok: str) -> float:
+        seen.append(tok)
+        return 0.0
+
+    _stdlib_toml.loads(text, parse_float=_note)
+    return bool(seen)
+
+
 def test_c_path_self_hosts_the_cascade_catalog() -> None:
-    """The native ``srmech_toml`` parser self-hosts EVERY cascade descriptor,
-    including the float-bearing ``best_rational_signed.toml`` — since rc397
-    (`#T1066`) the C float parse is correctly-rounded, so nothing declines. Each
-    self-hosted parse equals the stdlib oracle."""
+    """The native ``srmech_toml`` parser self-hosts every FLOAT-FREE cascade
+    descriptor and DECLINES every float-bearing one — a partition, with the
+    float set derived from the documents.
+
+    ⚠️ **rc479 (`#T1188`) inverted the float half of this claim, and the
+    reason is not the one rc397 removed.** Through rc478 this asserted
+    ``declined == []`` on rc397's ground: the C decimal→double parse became
+    correctly-rounded, so a float value was bit-identical to ``tomllib``'s and
+    the PRECISION decline went away. **That is still true and is not
+    retracted.** What changed is the CONTRACT. Under contract A the front door
+    returns the exact rational a decimal literal names, and no C value layer in
+    this library can hold a rational (``dv_value_t`` and ``srmech_mval_t`` are
+    both ``double``), so the binding declines a float-bearing document and the
+    exact Python floor answers it. It is a CARRIER decline where rc397's was a
+    precision one, and it is what keeps a native cell and a pure cell returning
+    the same object rather than a ``double`` in one and a ``Q`` in the other.
+
+    The restated property is strictly STRONGER than ``declined == []`` was: it
+    pins BOTH directions. A float-free descriptor that declines is a real
+    regression in the C parser — rc397's ground, still guarded. A float-bearing
+    one that self-hosts means the carrier decline stopped firing and a native
+    cell is serving doubles where a pure cell serves exact rationals, which is
+    the silent half and the reason this is not written as a skip.
+    """
     require_native("srmech_toml_parse")
     assert hasattr(_native.LIB, "srmech_toml_parse"), (
         "native library is loaded but exposes no srmech_toml_parse — a stale / "
@@ -214,12 +257,77 @@ def test_c_path_self_hosts_the_cascade_catalog() -> None:
             self_hosted.append(p.name)
             assert _deep_equal(got_c, _stdlib_toml.loads(text)), (
                 f"C-vs-tomllib dict mismatch for cascade descriptor {p.name}")
-    assert declined == [], (
-        f"cascade descriptor(s) DECLINED by the C parser — since rc397 the whole "
-        f"catalog self-hosts (floats included): {declined}")
-    assert _FLOAT_BEARING_CASCADE in self_hosted, (
-        f"the float-bearing {_FLOAT_BEARING_CASCADE!r} must now self-host on the "
-        f"correctly-rounded C float parse, not decline to tomllib")
+
+    float_bearing = sorted(
+        p.name for p in sorted(_catalog.CATALOG_DIR.glob("*.toml"))
+        if _carries_a_float(_read(p)))
+    assert float_bearing, (
+        "no cascade descriptor carries a float at all — the partition below "
+        "would be vacuous and would certify nothing")
+    assert self_hosted, (
+        "the C parser self-hosted NOTHING — rc397's correctly-rounded parse is "
+        "not the thing that regressed here; the parser is")
+    assert sorted(declined) == float_bearing, (
+        f"the C parser's declines are no longer EXACTLY the float-bearing "
+        f"documents. declined={sorted(declined)} float-bearing={float_bearing}. "
+        f"A float-FREE document among the declines is a C-parser regression; a "
+        f"float-bearing one among the self-hosted means the contract-A carrier "
+        f"decline stopped firing, and a native cell is then serving doubles "
+        f"where a pure cell serves exact rationals — same call, same input, "
+        f"different type, no error.")
+    assert _FLOAT_BEARING_CASCADE in declined, (
+        f"the float-bearing {_FLOAT_BEARING_CASCADE!r} must DECLINE under "
+        f"contract A — a CARRIER decline, not rc397's precision one — so the "
+        f"exact floor answers it")
+
+    # and the FLOOR does answer it exactly: the decline costs a parse, never a
+    # value. Typed, not just equal — a ``float`` here would mean the decline
+    # reached a reader that still rounds.
+    doc = srmech_toml_frontdoor.loads(
+        _read(_catalog.CATALOG_DIR / _FLOAT_BEARING_CASCADE))
+    leaves: list[object] = []
+
+    def _walk(v: object) -> None:
+        if isinstance(v, dict):
+            for x in v.values():
+                _walk(x)
+        elif isinstance(v, list):
+            for x in v:
+                _walk(x)
+        else:
+            leaves.append(v)
+
+    _walk(doc)
+    exact = [v for v in leaves if isinstance(v, _Q)]
+    assert exact, (
+        f"the front door returned no exact leaf for {_FLOAT_BEARING_CASCADE!r} "
+        f"— the C decline did not reach the exact floor")
+    # Every float leaf that REMAINS must be a Z1 one — a non-finite or a signed
+    # zero, which contract A deliberately leaves as ``float`` because no
+    # rational names them. This descriptor carries both (`nan` and `-0.0`, the
+    # documented proof-case boundary inputs), so the clause is not vacuous; a
+    # FINITE NON-ZERO float leaf would mean contract A read part of the
+    # document and rounded the rest. Decided by integer arithmetic on the
+    # IEEE bytes, never by an inequality against a tolerance.
+    import struct as _struct
+    residue = [v for v in leaves if isinstance(v, float)]
+    assert residue, (
+        f"{_FLOAT_BEARING_CASCADE!r} no longer carries a Z1 float leaf, so the "
+        f"clause below certifies nothing — restate it against a descriptor "
+        f"that does")
+    bad = []
+    for v in residue:
+        bits = int.from_bytes(_struct.pack("<d", v), "little")
+        expo = (bits >> 52) & 0x7FF
+        mant = bits & ((1 << 52) - 1)
+        finite = expo != 0x7FF
+        zero = expo == 0 and mant == 0
+        if finite and not zero:
+            bad.append(v)
+    assert not bad, (
+        f"the front door returned a FINITE NON-ZERO float leaf for "
+        f"{_FLOAT_BEARING_CASCADE!r} alongside the exact ones ({bad}) — "
+        f"contract A read part of the document and rounded the rest")
 
 
 def test_c_path_self_hosts_the_class_catalog() -> None:
