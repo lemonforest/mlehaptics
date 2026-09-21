@@ -303,35 +303,73 @@ def test_g3_no_unhooked_stdlib_loader_reads_caller_text():
         f"WITH ITS REASON — never as a wildcard.")
 
 
-#: The two adapter `_coerce` sites that read caller decimal TEXT through a
-#: BARE ``float()``, invisible to every json/toml predicate. Neither is wired
-#: to a shipped catalog (the only `adapter =` value under `amsc/attested/` is
-#: `literature_curated`), so they are NAMED rather than converted — and the
-#: naming is what stops a THIRD one being added unnoticed.
-_TEXT_COERCE_EXEMPT = 2
+#: STRICT ZERO. Two adapter ``_coerce`` sites read caller decimal TEXT
+#: through a BARE ``float()`` — `csv_bulk` and `html_scraper` — and they are
+#: invisible to every json/toml predicate, because they reach a float through
+#: neither front door nor any stdlib loader. The rc479 entry-point census
+#: found them only by this scan.
+#:
+#: They were adjudicated as a NAMED EXEMPTION seeded at 2, on the ground that
+#: neither is wired to a shipped catalog (the only ``adapter =`` value under
+#: ``amsc/attested/`` is ``literature_curated``). That is an argument about
+#: BLAST RADIUS, not about the contract: a CSV cell IS caller decimal text,
+#: and leaving it rounding while a JSON literal beside it is read exactly
+#: would be two contracts wearing one name, with the difference decided by
+#: which adapter a descriptor happens to name. Both were converted instead,
+#: so the population is ZERO and a third one cannot join a roster — it has to
+#: be fixed or argued.
+_TEXT_COERCE_EXEMPT = 0
 
 
-def test_g3_the_bare_float_text_adapters_are_named_not_missed():
-    """A ``float(<str-annotated param>)`` census, seeded at exactly two."""
+def _bare_float_hits(tree, where):
+    """``(where, fn, lineno)`` for every builtin ``float(<name>)`` whose
+    argument is a ``str``-annotated parameter of the enclosing def.
+
+    This is the ONLY predicate that can see a contract-A entry point which
+    reaches a float through neither front door nor any stdlib loader —
+    ``json``/``tomllib`` AST censuses are blind to it by construction.
+    """
+    out = []
+    for fn in ast.walk(tree):
+        if not isinstance(fn, ast.FunctionDef):
+            continue
+        strs = {a.arg for a in fn.args.args
+                if isinstance(a.annotation, ast.Name)
+                and a.annotation.id == "str"}
+        if not strs:
+            continue
+        for node in ast.walk(fn):
+            if (isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "float"
+                    and len(node.args) == 1
+                    and isinstance(node.args[0], ast.Name)
+                    and node.args[0].id in strs):
+                out.append((where, fn.name, node.lineno))
+    return out
+
+
+def test_g3_no_adapter_reads_decimal_text_through_a_bare_float():
+    """A ``float(<str-annotated param>)`` census over the adapters, at ZERO.
+
+    POSITIVE CONTROL: the predicate is re-run against a planted function, so
+    a scan that silently matches nothing cannot read as a clean sweep.
+    """
+    planted = ast.parse(
+        "def g(text: str):\n    return float(text)\n")
+    assert _bare_float_hits(planted, "planted"), (
+        "the predicate does not fire on its own positive control — a zero "
+        "below would be the scan failing, not the tree being clean")
+    negative = ast.parse(
+        "def g(x: float):\n    return float(x)\n")
+    assert not _bare_float_hits(negative, "planted"), (
+        "the predicate fires on a FLOAT parameter — it is not selecting for "
+        "text at all")
+
     hits = []
     for path in sorted((PKG / "amsc" / "adapters").rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for fn in ast.walk(tree):
-            if not isinstance(fn, ast.FunctionDef):
-                continue
-            strs = {a.arg for a in fn.args.args
-                    if isinstance(a.annotation, ast.Name)
-                    and a.annotation.id == "str"}
-            if not strs:
-                continue
-            for node in ast.walk(fn):
-                if (isinstance(node, ast.Call)
-                        and isinstance(node.func, ast.Name)
-                        and node.func.id == "float"
-                        and len(node.args) == 1
-                        and isinstance(node.args[0], ast.Name)
-                        and node.args[0].id in strs):
-                    hits.append((path.name, fn.name, node.lineno))
+        hits.extend(_bare_float_hits(
+            ast.parse(path.read_text(encoding="utf-8")), path.name))
     assert len(hits) == _TEXT_COERCE_EXEMPT, (
         f"the bare-float text-coercion population is {len(hits)}, not "
         f"{_TEXT_COERCE_EXEMPT}: {hits}. A new one is a new contract-A entry "
