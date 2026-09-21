@@ -124,19 +124,19 @@ It claimed `coupled_wave(2**53 + 1) == coupled_wave(2**53)`, on the premise that
 
 The C sweep covered FIVE kinds of site, enumerated by the tree's OWN gate rather than by an ad-hoc grep — 3165 files scanned, controls fired (17 `ABI 28`-shaped lines present, 0 `ABI 999`): the two sources, 4 `ABI-PIN:` comments, 2 ABI-named LOCALS (the half a `== <n>` sweep cannot see), 22 attribute/subscript comparison expressions, and 6 LIVE prose sites. CLASSIFIED AND LEFT: the notebook's *"ABI version: 3 throughout the v0.6.0 line"* (DATED and scoped in its own words), `test_axis_words_are_nearest_rc477`'s pointer to *"the `srmech.h` v29 history"*, and 31 `v29`/`29` hits in `rbs_lm_research/R-RBS-LM-*` reports that are not ABI at all. `python/README.md`'s `native_status()` block is CAPTURED OUTPUT and was RE-RUN, not hand-edited.
 
-### THE BREAKAGE, CLASSIFIED AND RESTATED — 45 FAILURES, NONE WEAKENED
+### THE BREAKAGE, CLASSIFIED AND RESTATED — 43 FAILURES OVER SIX FILES, NONE WEAKENED
 
-Measured under the shipped reader across the eight loader-touching gate files:
+⚠️ **This heading read "45 FAILURES" and the table below it summed to 51, and both were written from a running tally rather than from one run.** A heading a reader can disprove with addition is worth re-measuring, so it was: the tree at **`53ee85b9b`** — contract A's reader IN, the five reader rules and three guards IN, the declarations widened, and **not one loader gate restated yet**, which is exactly the state whose breakage this section is about — run in the PURE cell (`0.9.0rc478` on the version line at that commit, `HAS_NATIVE False`), **nine** loader-touching gate files, whole files, no `-k`. Result: **43 failed, 288 passed, 114 skipped**, across **six** files, three of the nine clean. The classes below are that run's node ids partitioned, and they sum to 43.
 
 | class | n | what it was | what it is now |
 |---|---|---|---|
-| parity against a HOOKLESS stdlib | 29 | `srmech._json.loads` vs a bare `json.loads` | the oracle installs the SAME `parse_float` — *the front door equals the backend GIVEN THE SAME READER* |
-| `assert isinstance(parsed, float)` | 18 | the rounding this rc removes, asserted | a CERTIFICATE: the reading is EXACT, it PROJECTS to the bit-identical double, and the exact value is the decimal the literal spells, decided by integer cross-multiplication |
+| parity against a HOOKLESS stdlib | 20 | `srmech._json.loads` vs a bare `json.loads` — `test_corpus_json_file_parity` ×5, `test_battery_value_parity` ×11, `test_corpus_ndjson_line_parity`, `test_pure_floor_is_reachable_and_correct`, `test_toml_dedup_parity_rc400::test_corpus_parity_pure`, `test_dsl_catalog_selfhost_rc392::test_cascade_catalog_self_hosts_to_the_same_registry` | the oracle installs the SAME `parse_float` — *the front door equals the backend GIVEN THE SAME READER* |
+| `assert isinstance(parsed, float)` | 18 | the rounding this rc removes, asserted — `test_float_bit_exact[…]`, every parametrisation | a CERTIFICATE: the reading is EXACT, it PROJECTS to the bit-identical double, and the exact value is the decimal the literal spells, decided by integer cross-multiplication |
+| the rc466 drain pin | 3 | `all(isinstance(c, float) …)`, plus the TWO declared-return rows that still named the two-way union after the `Qalg` arm landed | INVERTED to rc466's OWN rule, with `2**53 + 1` surviving where the float route rounds it; the declarations name all three carriers |
 | the MPR round trip | 1 | `from_json_line(to_json_line(r)) == r` over a float fixture | four clauses: exact leaf, bit-identical projection, byte-stable write, exact fixed point from pass two |
-| the rc466 drain pin | 1 | `all(isinstance(c, float) …)` | INVERTED to rc466's OWN rule, with `2**53 + 1` surviving where the float route rounds it |
-| the wire round-trip sweep | 2 | a `float` crossing the wire came back a `Q` and read as `EQUAL_BUT_TYPE_LOST` | its own named bucket, asserted as an EXACT equality on one member — a ceiling would have absorbed the next real loss |
+| the wire round-trip sweep | 1 | a `float` crossing the wire came back a `Q` and read as `EQUAL_BUT_TYPE_LOST` | its own named bucket, asserted as an EXACT equality on one member — a ceiling would have absorbed the next real loss |
 
-Six `TypeError: Object of type Q is not JSON serializable` and the fifteen rc420 chain-vs-op pairs were genuine and are fixed at root.
+The six `TypeError: Object of type Q is not JSON serializable` rows and the fifteen rc420 chain-vs-op pairs are NOT in that 43 and are not missing from it: both were genuine, both were fixed at root in commits that land BEFORE `53ee85b9b`, which is why a run at that commit no longer sees them. Counting them again here would be counting a repair twice.
 
 ### ⚠️ THE TWO C-PARITY HARNESSES NEEDED A ONE-CARRIER RULE, AND NEITHER PLAN PREDICTED IT
 
