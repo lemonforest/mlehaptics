@@ -51,7 +51,11 @@ import pytest
 from srmech import _native
 from srmech.cascade.parallel import COMBINE_REDUCERS, KLEIN4_SECTOR_CAP
 from srmech.dsl import chain
-from srmech.dsl._chain import _NATIVE_MISS, _parallel_native_desc
+from srmech.dsl._chain import (  # noqa: E501
+    _EXACT_CAPABLE_OPS as _RUNNER_EXACT_OPS,
+    _NATIVE_MISS,
+    _parallel_native_desc,
+)
 
 _HAS = (
     _native.HAS_NATIVE
@@ -74,6 +78,13 @@ _LEGAL_BODIES = ("chiral_flip", "autocorrelation")
 #: ``best_rational_signed`` is the fifth and behaves identically.
 _ILLEGAL_BODIES = ("magnitude", "reorient", "pin_slot_at_zero",
                    "best_rational_signed", "net_chirality")
+
+#: rc479 (`#T1188`): of the two legal bodies, the ones whose PURE projection
+#: can answer in an exact carrier. Imported from the runner rather than
+#: re-listed, so this file and the guard cannot drift apart — a second copy is
+#: how a partition test starts asserting a different partition from the one the
+#: library implements.
+_EXACT_CAPABLE_BODIES = frozenset(_LEGAL_BODIES) & _RUNNER_EXACT_OPS
 
 
 def _mk(body, ns, combine):
@@ -128,24 +139,67 @@ _CARRIERS = {
 @pytest.mark.parametrize("combine", _COMBINES)
 @pytest.mark.parametrize("carrier", sorted(_CARRIERS))
 def test_parallel_native_equals_pure(body, ns, combine, carrier):
-    """The C fan-out reproduces the threaded Python one BY REPR, not by ==.
+    """The C fan-out reproduces the threaded Python one BY REPR, not by ==,
+    on every (body, carrier) pair where C has a carrier for the answer — and
+    DECLINES, rather than approximating, on every pair where it does not.
 
     ``repr`` rather than ``==`` on purpose: ``0.0 == -0.0`` and ``12 == 12.0``,
     and both distinctions are reachable here (the iw7 axis is a sign flip, so a
     0.0 anywhere in the input puts a -0.0 into a sector result; and ``bundle``
     must preserve int).
 
-    ⚠️ NO SKIP-ON-DEFER BRANCH. Every carrier in the table is one C runs today
-    (measured: 280/280 rows native, 0 misses), so a tolerated deferral would let
-    the whole matrix go vacuous without a single red mark — the exact shape of a
-    green gate that has stopped measuring. A carrier that starts deferring is a
-    parity regression and must be seen as one. Mixed int/float lists are absent
-    from the table BY NAME rather than by silent skip: ``leaf_chiral_flip``
-    declines them (a pre-rc455 gate), so they were never in scope here.
+    ⚠️ **rc479 (`#T1188`) SPLIT this matrix in two, and the reason is a
+    wrong VALUE this file found.** Contract A makes ``autocorrelation`` keep an
+    exact sample exact, and no C value layer in this library holds a rational.
+    Through the op's own front door the rc479 G1 guard covers that — but THIS
+    runner never calls the op: it hands the whole chain to
+    ``srmech_dsl_chain_run``, so the op-level guard is invisible here and the
+    divergence reappeared one layer up. MEASURED at rc479 before the chain-level
+    guard: seed ``[7]`` served ``[49.0]`` native against ``[Q(49, 1)]`` pure,
+    and ``combine="mean"`` over three sectors served ``[16.333333333333332]``
+    against ``[Q(49, 3)]``. Same call, same version, no error either side —
+    which is why the fix is a DECLINE in ``srmech.dsl._chain`` and not a
+    tolerance here.
+
+    ⚠️ **STILL NO SKIP-ON-DEFER BRANCH, and that is the point of writing it
+    as a PARTITION.** The deferral is not tolerated, it is REQUIRED and named:
+    each row asserts which side it must fall on, derived from the body and the
+    carrier rather than listed. A row that runs where it must defer is a
+    silent cross-projection wrong answer; a row that defers where it must run
+    is the parity regression the original wording was guarding against. Both
+    are red. Mixed int/float lists remain absent from the table BY NAME rather
+    than by silent skip: ``leaf_chiral_flip`` declines them (a pre-rc455 gate),
+    so they were never in scope here.
     """
     value = list(_CARRIERS[carrier])
     native = _mk(body, ns, combine)._run_native(value)
     expect = _pure(body, ns, combine, value)
+
+    # WHICH SIDE this row must fall on, derived rather than listed: C has a
+    # carrier for the answer iff the op cannot answer exactly, or every leaf
+    # of the seed is already a float.
+    exact_capable = body in _EXACT_CAPABLE_BODIES
+    all_float = all(isinstance(v, float) for v in value)
+    must_defer = exact_capable and not all_float
+
+    if must_defer:
+        assert native is _NATIVE_MISS, (
+            f"the C path RAN for body={body!r} carrier={carrier!r}, whose pure "
+            f"projection answers in an exact carrier C cannot hold. It served "
+            f"{native!r} where pure serves {expect!r} — the same call, the "
+            f"same version, two different values and no error. The chain-level "
+            f"contract-A guard in srmech.dsl._chain has stopped firing.")
+        # and the PURE answer is exact, which is what makes the decline worth
+        # paying for. Decided by type, not by value: a float here would mean
+        # the decline bought nothing.
+        flat = [c for row in (expect if isinstance(expect[0], list) else [expect])
+                for c in row] if expect else []
+        assert any(type(c).__name__ in ("Q", "Qalg") for c in flat) or not flat, (
+            f"body={body!r} carrier={carrier!r} is on the defer side of the "
+            f"partition but the pure answer {expect!r} carries no exact leaf — "
+            f"the partition predicate and the reader disagree")
+        return
+
     assert native is not _NATIVE_MISS, "the C path must RUN for this carrier"
     assert repr(native) == repr(expect)
     assert _kinds(native) == _kinds(expect)
