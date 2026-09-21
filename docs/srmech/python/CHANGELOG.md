@@ -18,6 +18,142 @@ All notable changes to this package will be documented here. The format follows 
      `srmech.__version__` and that the slice holds EVERY current-minor entry in the file, so a
      marker that drifts again fails at the moment of drift rather than six releases later. -->
 <!-- pypi-readme-changelog-start -->
+## [0.9.0rc479] - `#T1188`: a caller's decimal TEXT is the exact rational it already names — and the two things the plan got backwards
+
+*(**ABI 29 → 30**, and it is the v10 / v12 SHAPE and the v12 INSTANCE: the same two exported symbols, the same status constant, no signature changing shape, and a different value RETURNED for a class of input. `SRMECH_GENOME_FORMAT_VERSION` stays 20. No C symbol is added or removed.)*
+
+**CONDITIONS FOR EVERY FIGURE BELOW.** WSL2, session worktree, branched from `9b24bd866` (v0.9.0rc478), CPython 3.12.3, **numpy absent** (import attempted and printed on every run), `PYTHONDONTWRITEBYTECODE=1`, everything in the FOREGROUND under `timeout`, one at a time. The PURE cell is a tree with **no** `.so` / `.pyd` / `.dll` / `.pyc` / `__pycache__` / `*.dist-info` anywhere — verified by a `find`, not by a deletion — and the banner was printed before every measurement (`version=0.9.0rc479 HAS_NATIVE=False NATIVE_ABI_VERSION=None EXPECTED_ABI_VERSION=30 LOAD_ERROR=None`, plus `srmech.__file__` and `_native.__file__`). The NATIVE cell was built from this rc's own C source and AUTHENTICATED by CALLING it rather than by trusting the file: `describe()["native"] == {'has_native': True, 'abi_version': 30, 'native_version': '0.9.0rc479'}`. `SRMECH_ALLOW_STALE_NATIVE` was never set and no mtime was touched. **No `fractions`, no numpy, no libm, no `math.*` is used as an oracle anywhere below**: every exactness verdict is an exact integer comparison and every bit-identity a `struct.pack`.
+
+### THE CONTRACT
+
+A caller's decimal **TEXT** — a JSON literal, a TOML literal, an MCP argument, a CLI `--input` — is read as the exact rational it already names. `{"x": 0.1}` loads as `Q(1, 10)`; binary64's `3602879701896397 / 2**55` is a SPELLING of one tenth that this package no longer imposes at the door. A Python `float` passed **in code** keeps its exact binary value, because that carrier was the caller's own election.
+
+Two rules bound it, and both are written down rather than left in the code:
+
+* **A1, the digit bound.** `MAX_DEC_DIGITS = 4300` — the limit CPython itself applies to an integer string conversion, so the refusal boundary is the one a caller already meets on `int(text)`. It is a **srmech constant** and deliberately not `sys.get_int_max_str_digits()`: measured, after `set_int_max_str_digits(100000)` a host can make `int('1'*5000)` succeed, and a host must not be able to move a srmech contract. **The bound is on the UNREDUCED pair**, because it is a pre-construction resource bound computed from the scan form — `5e-4300` REFUSES although its reduced denominator `2·10**4299` has exactly 4300 digits. The C node computes the same thing from the same scan form, so both projections refuse the same token.
+* **Z1, the two values `Q` cannot hold.** `nan` / `inf` / `-inf` stay floats (TOML hands them to `parse_float`; JSON routes them through `parse_constant` and never reaches the reader), and a literally-zero token SPELLED with a leading `-` stays the float `-0.0`, because `Q` has no signed zero. Four LIVE shipped proof cases require it.
+
+### ⚠️ THE ZERO COLLAPSE — FIVE LEGAL TOKENS, AND THE ORDER IS THE WHOLE OF IT
+
+An all-zero significand names **zero** whatever its exponent says, so `0e999999999` returns `Q(0, 1)` rather than refusing on a nine-digit numerator. The bound is a RESOURCE bound: for a zero significand `int(digits)` is never called and `10**e` is never built, so there is nothing to bound. **Five legal spellings ride it** — `0e999999999`, `0e-999999999`, `-0e999999999`, `0.0e999999999` and `'0.'` + `'0'`×5000 — and every one of them is accepted by `float` AND `json` AND `tomllib` today, so a reader without the collapse would have been a live behaviour regression on input nobody changed.
+
+**It runs AFTER the exponent's SYNTAX check and BEFORE any digit-count test, and both halves are load-bearing.** Hoist it above the validation and `0e` / `0eX` start being accepted; put it below the bound and the five tokens start being refused.
+
+**C was already correct here, and the obvious implementation would have broken it.** `srmech_toml.c`'s scanner has collapsed an all-zero digit run to `ndig = 0, E = 0` with the sign preserved since long before this rc. Replacing `toml_f64_scan_exp`'s saturation with the bound — which is what the shape of the problem invites — puts the refusal BEFORE that collapse, and a compiled variant turned all four of `0e999999999` / `0e-999999999` / `-0e999999999` / `0.0e999999999` into `SRMECH_ERR_LIMIT`. So the exponent scanner keeps full syntactic validation and reports an "exceeded" FLAG, and the caller refuses only when the significand is non-zero. **Neither planning lane's token table contained a zero-mantissa case**, which is exactly how this reached the build; the shipped gate seeds all five as ACCEPTANCES.
+
+### THE ENTRIES, AND THE C DECLINE THAT KEEPS THE TWO PROJECTIONS EQUAL
+
+The two front-door floors install the reader as their `parse_float=` default. The nine caller-text bypasses (2 MCP, 5 CLI, 2 `json_api`) get the same substitution **without crossing the protocol boundary they were placed at** — the PARSER stays stdlib at every one of them and only its reader moves.
+
+**`srmech_json.c` / `srmech_toml.c` yield a C `double`, and no C value layer in this library can hold a rational** — `dv_value_t` and `srmech_mval_t` both carry `double`, read at source. So a native cell would have returned `{'x': 0.1}` where a pure cell returns `{'x': Q(1, 10)}`: the same call, the same version, two different values. The ctypes tree-walk now DECLINES a document carrying a floating literal, and the floor answers exactly. Measured, both cells line for line identical: `{"x": 0.1}` → `Q(1, 10)`, `x = 1_000.000_1` → `Q(10000001, 10000)`, `x = nan/inf/-inf` → the float, `x = -0.0` → `-0.0`, `1e1000000` / `1e4300` / `1e-4300` → `ValueError` at both doors. It costs one wasted C parse on such a document and never costs correctness, which is the decline contract's whole point.
+
+### ⚠️ THE WRITE SIDE — THE PLAN HAD IT EXACTLY BACKWARDS, AND MEASURING IT IS WHAT CAUGHT IT
+
+The settled plan said one missing `default=`, emitting a `Q` as its exact `[num, den]` pair, and recorded that *"`response_sha256` / `collector_descriptor_hash` are unaffected: they hash raw fetched bytes before any parse"*. **Measured FALSE, both halves:** `descriptor_hash` hashes the PARSED dict re-emitted as canonical JSON — its own docstring says so — and that value IS every committed `collector_descriptor_hash`; and `response_sha256` for a `literature_curated` row is the SHA-256 of the PARSED row re-emitted the same way, not of the fetched bytes.
+
+Writing the exact pair would have been byte-correct, exact, and would have **silently invalidated every committed attestation in the tree**. So `amsc.format.canonical_json_default` writes the DOUBLE the rational projects to, at all ten canonicalisations whose bytes are hashed or committed. **Byte-IDENTICAL, measured rather than argued: 10 of 10 descriptor canonicalisations and 191 of 191 sampled row digests unchanged, 0 moved, with the Q-is-present control firing** (without the `default=` the same rows raise `TypeError: Object of type Q is not JSON serializable`). The exact channel is not lost — an integer `[num, den]` leaf AUTHORED as one, which `cosmos_validation`'s 132 integer leaves already use, needs no `default=` and round-trips untouched. A rational outside double range RAISES rather than inventing `Infinity`; no tree literal reaches it (widest committed numerator 124 digits, denominator 319).
+
+### THE TWO ENTRY POINTS NO `json` / `tomllib` PREDICATE CAN SEE
+
+`amsc/adapters/csv_bulk.py` and `amsc/adapters/html_scraper.py` each read a cell through a BARE `float(text)` inside a `_coerce(text: str, value_type: str)`. They reach a float through neither front door nor any stdlib loader, so every AST census built on *"a `json*`/`tomllib*` `.load`/`.loads` with no `parse_float`"* is blind to them by construction; the rc479 entry-point scan found them only by a `float(<str-annotated parameter>)` predicate.
+
+They were adjudicated as a NAMED EXEMPTION seeded at 2, on the ground that neither is wired to a shipped catalog (the only `adapter =` value under `amsc/attested/` is `literature_curated`). **That is an argument about BLAST RADIUS, not about the contract.** A CSV cell IS caller decimal text, and leaving it rounding while a JSON literal beside it is read exactly would be two contracts wearing one name, with the difference decided by which adapter a descriptor happens to name. Both are CONVERTED instead, so the census is a STRICT ZERO and a third one cannot join a roster — it has to be fixed or argued. The refusal contract is unchanged: a cell that names no rational, or one past the bound, still returns `None` exactly as a `ValueError` from `float()` did. `test_adapters.py` is 8 passed / 1 skipped.
+
+### THE TWO CARRIER GAPS A `Q` OPENS IN A FLOAT-ANNOTATED FUNNEL
+
+**C-1.** `Q < inf`, `inf < Q`, `Q < nan`, `nan < Q` all raised `TypeError`, because `_as_pair` reads a non-finite float as `None` and BOTH directions then returned `NotImplemented`. A `Q` is always finite, so its order against ±inf is decided without arithmetic; a NaN is unordered, which needs a sentinel distinct from "not my type" or `Q < nan` raises where `0.1 < nan` is quietly `False`. **Repaired at the carrier, which is where it belongs:** the funnel is `rational._is_finite`, annotated `x: float`, reached with a `Q` the moment contract A lands, and BREAKING ON ITS OWN ARGUMENT at 17 call sites across 5 modules. Measured after: 14 comparisons, 0 raising, controls `Q < 0.5` True / `0.5 < Q` False / `0.1 < inf` True / `0.1 < nan` False.
+
+**C-2.** `Q * complex`, `complex * Q` and `complex / Q` raised `TypeError` while `complex(Q)` had always worked — the carrier could be CONVERTED but not COMBINED. Each component is now formed EXACTLY in ℚ and projected ONCE, which is strictly better than `complex(float(q)) * other`: measured, `Q(1,3) * (3+0j)` is exactly `(1+0j)`. 8 operations, 0 raising. A complex with a non-finite component still declines.
+
+**C-3.** `coupled_wave`'s door admits the exact carrier, because a descriptor's `theta = 1.5` now arrives as `Q(3, 2)` and refusing it would turn a working call into an `AssertionError` on a value the caller never changed.
+
+### ⚠️ AND `coupled_wave`'s ACCURACY PARAGRAPH WAS ALREADY FALSE, FOR FIVE RELEASES
+
+It claimed `coupled_wave(2**53 + 1) == coupled_wave(2**53)`, on the premise that `rational.sin` / `cos` do `x = float(x)` at their own door. **rc474 (`#T1188`) gave those two ops an EXACT-OPERAND route ABOVE that cast**, so the claim had been false since. MEASURED at rc478, before this rc moved a line: the two calls return DIFFERENT legs, with E-denominators `2**84` and `2**83` against the Q61 route's `2**61`. The live per-carrier contract is stated instead — a float `theta` takes the Q61 route bit-for-bit as every prior rc; an `int` or `Q` one takes the exact-rational reduction at 61 fractional bits, which is a different and finer number for the same angle (`coupled_wave(1.5)` gives E-denominator `2**61`, `coupled_wave(Q(3,2))` gives `2**85`). Found by widening the door, not by a gate.
+
+### THE FIVE READER RULES AND THE THREE GUARDS, IN ONE COMMIT
+
+`autocorrelation` took `[float(v) for v in x]` at its entry and its declared chain did not, so under contract A the chain returned the exact `200000000000000000014` where the op returned `2e+20` — and fifteen rc420 bit-identity proof cases went red. `quaternion_dft` / `octonion_dft` took the same cast per component, and both composed routes projected the exit UNCONDITIONALLY where `vec_scale` — the registered op the declared chain names — projects per element only where that element's own leaf is a float.
+
+**The rc466 rationale M2/M3 remove was falsified by measurement, not by argument.** It said an exact sample *"would ride `qdft_summand`'s exact rung into `vec_add`'s float accumulator and `Q.__radd__` would turn the chain into Q-of-float arithmetic"*. On the rc478 BASELINE the DECLARED CHAIN **already** returns Q-of-float for every partially-exact sample shape. The entry cast never prevented the mixed carrier; it only stopped the WRAPPER from matching the chain that has it. The comment is RESTATED at both sites rather than silently deleted, and `test_silent_carrier_demotion_rc463` — the tree's own mixed-carrier detector — is 149 passed / 1 skipped either way.
+
+**G1–G3 are not optional and ship in the same commit.** The rc420 gate calls `_pure_projection()` by construction, so it is BLIND to the native cell, and all three C peers marshal doubles. Shipping the five alone is 107 green over a measured cross-projection wrong answer: `autocorrelation([1e10, 1, −1e10, 2, 3])` exact serves `200000000000000000014` in pure and `200000000000000000000` in native, **Δ = −14, same call, same version**. MEASURED both ways, 12 probes (6 exact + 6 float), each cell's banner printed: **pure-vs-native differ 6 of 12 with the guards ABLATED and 0 of 12 with them**, every one of the six an EXACT probe and every float probe unmoved in both arms. The ablation is the control that makes the 0 a measurement.
+
+### THE ROUND TRIP THAT RAISED, FOUND BY THE CAP LANE
+
+`qdft_summand` / `odft_summand` have returned `Qalg` leaves since rc468 whenever the turn's cosine and scaled sine are not both rational — every `n = 3` transform does — and M2/M3 let those leaves reach the public wrapper's OUTPUT for the first time. Handing that output straight back in is the most ordinary thing a caller can do with a transform, and it raised `TypeError: float() argument must be a string or a real number, not 'Qalg'`, because `exact_vector` reads a `Qalg` as `None` and the float fallback met it. `as_quat4` / `as_oct8` gain the exact-ALGEBRAIC rung; the ℍ↪𝕆 embedding is written out rather than delegated to `cd_promote` / `cd_project`, which coerce every leaf through `to_q` and MEASURABLY raise on a `Qalg`, and which for this shape do a zero-extension with no arithmetic in it.
+
+### THE ANSWERS THAT CHANGE
+
+**(a) A FLOAT CALLER'S VALUES DO NOT MOVE.** 6 of 6 float probes byte-identical in both cells, across all four cell pairs of the ablation, with the 6 EXACT probes as the control that the instrument can return otherwise.
+
+**(b) An exact operand's answers become EXACT.** `autocorrelation` serves `200000000000000000014` where the float op serves `2e20`; the transforms serve `Q` and `Qalg` leaves where they served float64.
+
+**(c) DISCRETE OUTCOMES — every one named, because this is where a wrong answer ships silently.**
+
+1. **A VERDICT FLIPS ON THE WIRE.** `classify_chirality_harmonic` over `hv = 11×(+1) + 9×(−1)` scores an exact DC of `2/20 = 1/10`. A JSON `dc_threshold: 0.1` used to answer **2** and now answers **1**, because the threshold is read as the tenth it spells. The integers say why it is a boundary EQUALITY and not a drift: `0.1` is exactly `3602879701896397/2**55`, and cross-multiplying against `1/10` gives `36028797018963968` against `36028797018963970` — the exact score is strictly BELOW the float threshold while being exactly EQUAL to the exact one. **The control is what makes it a measurement:** `0.5` is exact in binary64 and both its spellings answer **2**, so the carrier alone does not move the verdict.
+2. **AN OP THAT ANSWERED NOW RAISES**, and it is the only such place. `qdft_summand` / `odft_summand` build the twiddle in ℚ(ζ_M) and refuse above the field-degree cap; through rc478 the wrappers floated first, so this was unreachable from the public wrapper. **RE-MEASURED at rc478's DEGREE cap** — the rc477 INDEX-rule figures both plans carry (`ijk` first refusing at n = 23, `diagonal` at n = 11/13/15) are SUPERSEDED, not contradicted. At `MAX_CYCLOTOMIC_DEGREE = 888`: `axis_k = 1` refuses NOTHING below n = 256; `quaternion_dft(mu_axis="ijk")` first refuses at **n = 227** (`Φ_2724`, degree 904), 6 refusals below 256; `octonion_dft(mu_axis="diagonal")` first refuses at **n = 79** (`Φ_2212`, degree 936), 82 below 256 and 114 of 128 admitted. Executed at both witnesses (the refusal costs 8–14 ms — a refusal is arithmetic), with the FLOAT control answering at the same n (8 254 ms and 2 409 ms) and an admitted-length exact control answering. It ships gated and announced.
+3. **A REFUSAL BECOMES AN ANSWER.** `autocorrelation([(1,2),(3,4)])` raised `TypeError: float() argument must be … not 'tuple'` and now answers `[Q(13,16), Q(3,4)]`; `quaternion_dft([[(1,2),0,0,0]])` likewise. **A stray 2-tuple now silently means one half**, because `(num, den)` is srmech's rational house form.
+4. **TYPES change for every `int` / `bool` caller.** `autocorrelation([1,-2,3])` → `[Q(14,1), Q(-5,1), Q(-5,1)]`; `autocorrelation([True, False])` → `[Q(1,1), Q(0,1)]`.
+5. **A VALUE changes for an `int` caller, and the float one was wrong.** `autocorrelation([3, 3002399751580331])` → `9014404268289633301131946069570` where the float route gives `9.014404268289633e+30`, and `18014398509481986` where it gives `1.8014398509481984e+16`.
+6. **A MIXED-carrier list is served.** `autocorrelation([1, 2.5])` → `[Q(29,4), 5.0]`.
+7. **`float()` of an out-of-range literal RAISES where it was `inf`.** `float(_json.loads("1e400"))` is `OverflowError` where it was `inf`; the value itself is a 401-digit integer. **Zero of the 93 `OverflowError` handlers in the tree catch `float(Q)`**, so this surfaces at an arbitrary later consumer rather than at the parser — stated because that is the cost of the ruling, not a footnote to it.
+8. **A float written to NDJSON and read back is no longer the same float.** It is the exact decimal the line spells, which projects to the identical double and re-serialises to identical bytes, and is an exact FIXED POINT from the second pass on.
+
+**Unchanged, verified as controls:** `autocorrelation(["1.0"])` → `[1.0]` (a `str` still rides the float fallback); `quaternion_dft([[1, 2.5, 3, 4]])` → floats (`as_quat4` requires ALL FOUR components exact); `autocorrelation([])` → `[]`. Rows 3–6 are **not reachable from a TOML or JSON document** — TOML has no tuple literal and a whole-number TOML float is `1.0` — so they are direct Python callers only. They still ship.
+
+**Out-of-tree callers are UNVERIFIED.** In-tree is measured clean: a scan of 267 package modules for consumers of the three widened ops returns ZERO computational consumers, with positive controls firing (`compensated_sum` 9, `as_quat4` 7, `as_oct8` 6, `correlation_product` 5) and `NOSUCHOPNAME_ZZZ` = 0. Whether an out-of-tree caller compares, sorts or buckets these values cannot be settled in-tree, and is stated here rather than implied.
+
+### ABI 29 → 30, AND A BOUND THAT HOLDS IN BOTH PROJECTIONS
+
+`SRMECH_DEC_MAX_DIGITS` lands in the public header and BOTH parsers read it. Measured at the exported symbols, ABI 29 against ABI 30, `srmech_toml_parse` and `srmech_json_parse` agreeing token for token with the Python reader:
+
+| token | rc478 | rc479 |
+|---|---|---|
+| `1e4300` / `1e-4300` / `5e-4300` | `SRMECH_OK`, inf or 0.0 | **`SRMECH_ERR_LIMIT`** |
+| `1e99999` / `1e100000` / `1e1000000` / `1e3000000` | `SRMECH_OK`, inf | **`SRMECH_ERR_LIMIT`** |
+| `1e400` / `1e-400` / `1e4299` / `1e-4299` / `1e308` / `1e309` | unchanged | unchanged |
+| `0e999999999` and its four zero siblings | `SRMECH_OK`, sign preserved | unchanged |
+| `0e` / `0eX` / `1e` / `1e+` | `SRMECH_ERR_BAD_INPUT` | unchanged |
+
+`1e4299` accepts and `1e4300` refuses — the same boundary in both projections, which is the whole reason to do it in C at all. The header's status block states outright that non-zero values *"form part of the wire contract with the Python ctypes binding"*, so reinterpreting one IS a wire-contract change — the ground v12 bumped on at rc404, for these same two functions. The pairing it refuses is an rc478 `.so` under rc479 Python: both load, neither errors, and the stale library simply ANSWERS a token this release refuses.
+
+**A latent off-by-one fixed while the file was open.** `toml_f64_scan` bounded with `hi - lo + 1 > dcap`, admitting `ndig == dcap == 64` while BOTH callers assert `ndig < 64`. Unreachable through today's 63-char token cap, live the moment the staging widens. Tightened to `>=`.
+
+The C sweep covered FIVE kinds of site, enumerated by the tree's OWN gate rather than by an ad-hoc grep — 3165 files scanned, controls fired (17 `ABI 28`-shaped lines present, 0 `ABI 999`): the two sources, 4 `ABI-PIN:` comments, 2 ABI-named LOCALS (the half a `== <n>` sweep cannot see), 22 attribute/subscript comparison expressions, and 6 LIVE prose sites. CLASSIFIED AND LEFT: the notebook's *"ABI version: 3 throughout the v0.6.0 line"* (DATED and scoped in its own words), `test_axis_words_are_nearest_rc477`'s pointer to *"the `srmech.h` v29 history"*, and 31 `v29`/`29` hits in `rbs_lm_research/R-RBS-LM-*` reports that are not ABI at all. `python/README.md`'s `native_status()` block is CAPTURED OUTPUT and was RE-RUN, not hand-edited.
+
+### THE BREAKAGE, CLASSIFIED AND RESTATED — 45 FAILURES, NONE WEAKENED
+
+Measured under the shipped reader across the eight loader-touching gate files:
+
+| class | n | what it was | what it is now |
+|---|---|---|---|
+| parity against a HOOKLESS stdlib | 29 | `srmech._json.loads` vs a bare `json.loads` | the oracle installs the SAME `parse_float` — *the front door equals the backend GIVEN THE SAME READER* |
+| `assert isinstance(parsed, float)` | 18 | the rounding this rc removes, asserted | a CERTIFICATE: the reading is EXACT, it PROJECTS to the bit-identical double, and the exact value is the decimal the literal spells, decided by integer cross-multiplication |
+| the MPR round trip | 1 | `from_json_line(to_json_line(r)) == r` over a float fixture | four clauses: exact leaf, bit-identical projection, byte-stable write, exact fixed point from pass two |
+| the rc466 drain pin | 1 | `all(isinstance(c, float) …)` | INVERTED to rc466's OWN rule, with `2**53 + 1` surviving where the float route rounds it |
+| the wire round-trip sweep | 2 | a `float` crossing the wire came back a `Q` and read as `EQUAL_BUT_TYPE_LOST` | its own named bucket, asserted as an EXACT equality on one member — a ceiling would have absorbed the next real loss |
+
+Six `TypeError: Object of type Q is not JSON serializable` and the fifteen rc420 chain-vs-op pairs were genuine and are fixed at root.
+
+### ⚠️ THE TWO C-PARITY HARNESSES NEEDED A ONE-CARRIER RULE, AND NEITHER PLAN PREDICTED IT
+
+C has no exact route. Unprojected, `json.dumps` fails on the `Q` and the failure wears a verdict's NAME: the VALUE gate reclassified **50 of 98 proof cases** from `BYTE_IDENTICAL` to `NONFINITE_CANNOT_CROSS_WIRE` (94/4 became 44/54), the rc446 RATCHET reclassified **8 of 18 chains** from accepted to rejected, and the cross-artifact tie between them then reported the two harnesses disagreeing — which is precisely the signal it exists to give. Projecting only the INPUTS is not enough: the chain DOCUMENT carries bound literals too, measured on all four of `best_rational_signed`, `kuramoto_step`, `quaternion_dft` and `octonion_dft`, whose inputs marshalled while their chains did not. `tests/_carrier_projection.py` holds ONE helper, both files project the chain AND the inputs, and the value gate RE-PARSES its `ChainSpec` from the projected document so Python executes the numbers C was handed. After it, both are back to their rc478 populations EXACTLY: **98 proof cases over 18 chains, BYTE_IDENTICAL 94 / NONFINITE 4**, and **18 accepted / 0 rejected**.
+
+### ⚠️ WHAT THE rc420 GATE STOPS PROVING — 313 → 6
+
+Contract A converts **307 of the 313 FLOAT input leaves** in that gate's own 98 proof cases to `Q`, because the proof-case inputs are read from the descriptor TOML. The 6 survivors are exactly the rule-Z1 non-finite escapes (`magnitude` nan/inf/−inf ×4, `best_rational_signed` nan ×2). **So "107 passed" at rc479 is a materially NARROWER claim than the identical "107 passed" at rc478, and nothing in that gate says so.** It is pinned in `G-FLOATARM` so the collapse can neither deepen nor silently reverse without a reader being told.
+
+### GATES — AND WHAT EACH ONE DOES NOT PROVE
+
+`tests/test_exact_text_reader_rc479.py`, **34 rows** (31 + 3 native-only). Each states its own limit, because a gate whose scope is unstated reads as covering the thing beside it: **G1** the bound at both doors with the five zero ACCEPTANCES and a planted-mutation proof (*does not prove the C node refuses the same token — that is G5*); **G1-UNRED** the unreduced rule, decided by integer comparison because `len(str(10**4300))` raises on the very limit under test; **G2** the verdict witness with its `0.5` control (*does not prove anything about the other 731 registry entries*); **G3** strict zero on an unhooked stdlib loader reading caller text, exemptions as a named roster with reasons — it found a site neither plan had, `bus/_bio_totp.py`'s wrong-key detector, which parses for SHAPE and discards the value — plus the bare-`float(str)` adapter census seeded at exactly two; **G4** the projection invariant harvested through a recording `parse_float`, the same mechanism the front door ships, so it doubles as a reach proof (*does not prove any op's OUTPUT is unchanged*); **G5/G8** the C node's own verdicts read from the exported symbols, because the binding now declines every float document (*does not prove the C arena is right — only that its verdicts match*); **G-MIX** the op equals its own declared body elementwise and by type, plus the round trip with a Qalg-is-present control (*does not prove the mixed carrier is ABSENT — it is present and pre-existing*); **G-SIEVE** the one answer-to-exception boundary (*does not prove anything above n = 256; it is a SIEVE over n*); **G-FLOATARM** the collapse above; **G-DIGEST** every shipped NDJSON row and every descriptor, with the control that fires.
+
+### THE LEDGERS AND THE ONE LABEL THAT MOVED
+
+`test_r3_reader_rc470::test_group_e` went red on the folded DECLARED label-map digest while the COUNT held at 238 — which is the digest reporting what a count structurally cannot. Named before re-pinning, by diffing the hit lists op-by-op against the committed rc478 tree: **ONE op**, `coupled_wave`, `['rounding', 'float64', 'approximation']` → `['float64', 'approximation']`, because this rc's own rewrite of that paragraph dropped the word while keeping the meaning. **Repaired at the PROSE, not at the pin**, because the declaration is TRUE — the op rounds on both carriers and only the PLACE moves. Re-measured: 238 DECLARED, 0 hit lists moved, digest unchanged, 65 passed. Re-pinning is reserved for a label that moved for a reason, and this one had not.
+
+The four generated artifacts were regenerated in derived order and are idempotent on a second pass; `regen_all` REFUSED the first run (two explanations neither curated nor re-derivable), which is the state an edit to the CURATED file creates and exactly what `--accept-seed-drift` names.
+
 ## [0.9.0rc478] - `#T1188`: the cap was on the wrong quantity — a degree-500 field was admitted while a degree-88 field was refused, and the memo that pays for raising it
 
 *(**ABI stays 29**, and the ground is measured rather than assumed. The whole change is Python-side: the exact cyclotomic route has no C peer at all, because C has no bignum ℚ let alone a cyclotomic field, and the three exported twiddle symbols take only `double theta`. The only C delta is **five regenerated `const char *` rows** in `c/src/srmech_tool_registry.c`, which is GENERATED — no signature, no struct, no status reinterpretation, no symbol added, none removed, and **zero `MAX_CYCLOTOMIC` references anywhere in non-generated C**. Registry total unchanged at **732**.)*
