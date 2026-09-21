@@ -86,8 +86,23 @@ _MAX_TERMS: int = 128
 _FLOAT_INF: float = float("inf")
 
 
-def _is_finite(x: float) -> bool:
-    """``_is_finite`` via comparison: finite iff not NaN and within ±∞."""
+def _is_finite(x: "float | object") -> bool:
+    """``_is_finite`` via comparison: finite iff not NaN and within ±∞.
+
+    ⚠️ **rc479 (`#T1188`) — TOTAL over ``{float, Q}``, and the declaration
+    says so.** The body is unchanged; what changed is that it is now REACHED
+    with an exact ``Q``. Under contract A a decimal literal arrives as a ``Q``,
+    ``_coercion``'s ``"float": _identity`` passes it through untouched, and a
+    ``Q`` then reaches all seventeen of this function's call sites across five
+    modules. Through rc478 it BROKE ON ITS OWN ARGUMENT there —
+    ``-inf < Q`` raised ``TypeError`` because ``Q``'s comparison dunders read a
+    non-finite float as "not my type" — and the annotation ``x: float`` was
+    the declaration that made the breakage look like a caller error. The
+    repair is at the carrier (``Q._cmp``'s non-finite arm), which is where it
+    belongs: every ``Q`` is finite, so this returns ``True`` for one without
+    arithmetic. The annotation is widened to match what it accepts, per the
+    declared-type honesty rule.
+    """
     return x == x and -_FLOAT_INF < x < _FLOAT_INF
 
 

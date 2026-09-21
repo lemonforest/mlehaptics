@@ -17,6 +17,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, Iterator
 
+from ...math.q import parse_float_exact as _parse_float_exact  # rc479 (`#T1188`)
 from ..descriptor import Descriptor
 from . import _base
 
@@ -117,12 +118,19 @@ def parse(
 
 def _coerce(text: str, value_type: str) -> Any:
     """Coerce a string cell value to a typed Python value per the
-    descriptor field-map's ``type`` column."""
+    descriptor field-map's ``type`` column.
+
+    ⚠️ **rc479 (`#T1188`)**: the scraped cell is caller decimal TEXT and is
+    read EXACTLY, the same as its ``csv_bulk`` twin — see that function for
+    why this site is invisible to every ``json``/``tomllib`` predicate and for
+    the refusal contract, which is unchanged (an unparseable or over-bound
+    cell still returns ``None``).
+    """
     if value_type == "string":
         return text
     if value_type == "float":
         try:
-            return float(text)
+            return _parse_float_exact(text)
         except ValueError:
             return None
     if value_type == "int":

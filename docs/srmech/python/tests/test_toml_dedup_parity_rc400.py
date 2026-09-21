@@ -44,6 +44,8 @@ else:  # pragma: no cover — 3.10 back-port
     import tomli as _stdlib_toml  # type: ignore[no-redef]
 
 
+from srmech.math.q import parse_float_exact   # rc479 (`#T1188`): contract A
+
 _CATALOGS = Path(_toml_chain.__file__).resolve().parent.parent / "cascade" / "catalogs"
 _CASCADE_DIR = _CATALOGS / "cascade_catalog"
 _ALIAS_DIR = _CATALOGS / "alias_catalog"
@@ -177,7 +179,10 @@ def _deep_equal(a, b) -> bool:
 def _assert_corpus_parity() -> None:
     for p in _corpus():
         text = _read(p)
-        oracle = _stdlib_toml.loads(text)
+        # rc479 (`#T1188`): the self-hosting contract is HOOK-RELATIVE —
+        # the front door must equal the backend GIVEN THE SAME READER. A bare
+        # stdlib oracle would measure contract A instead of the self-host.
+        oracle = _stdlib_toml.loads(text, parse_float=parse_float_exact)
         # (a) the deduped file surface
         assert _deep_equal(_toml_chain.load_chain_toml(p), oracle), (
             f"load_chain_toml diverged from tomllib for {p.name}")

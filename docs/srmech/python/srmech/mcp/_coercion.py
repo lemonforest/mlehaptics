@@ -1690,6 +1690,12 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # ceiling comment defends, whose returns have NO wire form at all.)
     "Mat | QMat": _to_exact_or_float_rows,
     "list[float] | list[Q]": _to_exact_or_float_vector,
+    # rc479 (`#T1188`): the same union with the exact-ALGEBRAIC arm
+    # (as_quat4 / as_oct8). The WIRE form is unchanged — a Qalg has none, so
+    # nothing new can arrive over JSON-RPC and the same vector coercer serves
+    # it; what the widened spelling declares is the IN-PROCESS arm, which is
+    # what the transforms now return and what these two ops now accept back.
+    "list[float] | list[Q] | list[Qalg]": _to_exact_or_float_vector,
     # 0.9.0rc466 (`#T1188`) stage 3: the RETURN spellings the seventy-row drain
     # widened (and rc463's `Mat | list`, which never had one). Each had a wire
     # form — Q as [num, den], Qi as a $srmech_carrier envelope since this
@@ -1940,6 +1946,15 @@ _PARAM_COERCERS: Dict[str, Callable[..., Any]] = {
     # rc465 and no lexicon row; `Optional[list[int | Q | float]]` (charges)
     # likewise — both gain their lexicon rows in this rc.
     "list[list[float]] | list[list[Q]]": _to_exact_or_float_row_list,
+    # rc479 (`#T1188`): the same nested union with the exact-ALGEBRAIC arm —
+    # quaternion_dft / octonion_dft now DECLARE what they return off a
+    # non-rational turn. The WIRE form is unchanged (a Qalg has none), so the
+    # same row-list coercer serves it; the row exists because a declared
+    # return with no inbound coercer is an op whose output cannot be fed to
+    # the next by declared type, which the rc414 ratchet counts and this rc
+    # must not add to.
+    "list[list[float]] | list[list[Q]] | list[list[Qalg]]":
+        _to_exact_or_float_row_list,
     "Optional[list[list[float]] | list[list[Q]]]": _to_exact_or_float_row_list,
     "Mat | Vec | Sequence[int | Q]": _to_mat_or_vec,
     "float | Q | Sequence[int | Q | float]": _to_scalar_or_charges,

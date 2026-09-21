@@ -37,6 +37,7 @@ import ctypes
 import json
 
 import pytest
+from tests import _carrier_projection
 
 from srmech.cascade import compose as _compose
 from srmech.dsl import _cascade_chain as _cc
@@ -69,6 +70,9 @@ def _chain_only(entry):
 def _c_value(chain, inputs):
     """Run in C; return (rc, reconstructed value)."""
     lib = _lib()
+    # rc479 (`#T1188`): ONE carrier — see tests/_carrier_projection.py.
+    chain = _carrier_projection.double_projection(chain)
+    inputs = _carrier_projection.double_projection(inputs)
     cj = json.dumps(chain, ensure_ascii=False).encode("utf-8")
     xj = json.dumps({"inputs": inputs}, ensure_ascii=False).encode("utf-8")
     n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))

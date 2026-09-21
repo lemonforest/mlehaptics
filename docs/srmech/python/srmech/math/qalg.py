@@ -426,6 +426,79 @@ class Qalg:
         eq = self.__eq__(other)
         return eq if eq is NotImplemented else not eq
 
+    # ── ORDER, exactly where one EXISTS (rc479, `#T1188`) ──────────────────
+    #
+    # ⚠️ THIS IS NOT A TOTAL ORDER, AND IT MUST NOT BECOME ONE. A general
+    # element of ℚ(α) is COMPLEX — every cyclotomic field above ℚ(ζ₄) has
+    # non-real elements — and "<" is not merely hard for a complex number, it
+    # is UNDEFINED. So the order is implemented exactly where it exists (the
+    # element lies in the prime field ℚ, where it IS a real rational and its
+    # order is that rational's) and REFUSES otherwise, naming why.
+    #
+    # WHY IT IS NEEDED AT ALL. Through rc478 a `Qalg` never reached a public
+    # wrapper's OUTPUT: the DFT transforms cast to float at their own entry.
+    # rc479's M2/M3 removed that cast, so an EXACT sample now returns `Qalg`
+    # leaves — and `quaternion_dft`'s own SHIPPED worked example, which a user
+    # copies, computes a round-trip residue and asks `d >= 0` for the Class-K
+    # sign branch. Measured on that snippet: all 32 residues are RATIONAL and
+    # exactly ZERO, so the rational arm closes it completely and exactly,
+    # with no projection and no tolerance anywhere. It is the `Q` carrier's
+    # rc479 non-finite repair one rung up: the gap is at the CARRIER, so the
+    # repair is too.
+    #
+    # `float(Qalg)` is deliberately NOT the fallback. `to_float` needs an
+    # attached embedding root and raises without one, and using it would make
+    # a comparison depend on a rounding — which is the defect this whole
+    # release removes.
+
+    def _order_pair(self, other):
+        """``(self_q, other_q)`` as exact ``Q``s when BOTH sides are rational,
+        else ``None``. No field is constructed and nothing is projected."""
+        if not self.is_rational():
+            return None
+        if isinstance(other, Qalg):
+            if not other.is_rational():
+                return None
+            return (self._coords[0], other._coords[0])
+        q = _to_q(other)
+        if q is None:
+            return None
+        return (self._coords[0], q)
+
+    def _order_refusal(self, other, op):
+        return TypeError(
+            f"'{op}' is undefined between {type(self).__name__} and "
+            f"{type(other).__name__} unless BOTH lie in the prime field ℚ. A "
+            f"general element of ℚ(alpha) is COMPLEX, and a complex number "
+            f"has no order — this refuses rather than inventing one from a "
+            f"float embedding. Use .is_rational() / .as_rational() to take "
+            f"the exact rational when there is one, or compare a derived "
+            f"real quantity instead.")
+
+    def __lt__(self, other) -> bool:
+        pair = self._order_pair(other)
+        if pair is None:
+            raise self._order_refusal(other, "<")
+        return pair[0] < pair[1]
+
+    def __le__(self, other) -> bool:
+        pair = self._order_pair(other)
+        if pair is None:
+            raise self._order_refusal(other, "<=")
+        return pair[0] <= pair[1]
+
+    def __gt__(self, other) -> bool:
+        pair = self._order_pair(other)
+        if pair is None:
+            raise self._order_refusal(other, ">")
+        return pair[0] > pair[1]
+
+    def __ge__(self, other) -> bool:
+        pair = self._order_pair(other)
+        if pair is None:
+            raise self._order_refusal(other, ">=")
+        return pair[0] >= pair[1]
+
     def __hash__(self) -> int:
         """Hash consistent with :meth:`__eq__` (the Python data-model invariant:
         equal objects hash equal). A RATIONAL element now hashes as its ``Q``

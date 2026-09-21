@@ -67,6 +67,7 @@ from __future__ import annotations
 import pytest
 
 from srmech._json import loads
+from srmech.math.q import Q as _Q          # rc479 (`#T1188`): contract A's carrier
 from srmech.introspect.carrier_schema import carrier_schema
 from srmech.introspect.tool_schema import get_tool_schema, warmup_all
 from srmech.mcp._coercion import (
@@ -394,6 +395,18 @@ def _verdict(name: str, value: object) -> "tuple[str, str]":
         return "EQ_RAISED", type(exc).__name__
 
     if type(back) is not type(value):
+        # rc479 (`#T1188`) — CONTRACT A, and it is not a loss. A `float`
+        # crossing the wire is TEXT on the way, and this release reads a
+        # decimal text as the exact rational it already names, so `0.1` comes
+        # back `Q(1, 10)` BY CONTRACT rather than by a coercer forgetting to
+        # rebuild a carrier. It is a PROMOTION (float -> Q), it is the only
+        # promotion the wire performs, and the value is preserved exactly —
+        # so it gets its own named class and its own EXACT assertion below
+        # rather than a raised ceiling, which is how a ratchet stops
+        # ratcheting. Anything else that loses its type still fails.
+        if isinstance(value, float) and isinstance(back, _Q) and back == value:
+            return "CONTRACT_A_EXACT_PROMOTION", (
+                f"{type(value).__name__} -> {type(back).__name__}")
         # THE MANUFACTURED GREEN. Vec/HV compare equal to a bare list, so
         # ``back == value`` alone would call this a pass while the carrier is
         # gone. Reported as its own class, counted as a failure.
@@ -438,12 +451,27 @@ def test_carriers_round_trip_over_the_wire() -> None:
     ``REPR_STRING`` needs an outbound wire form, a ``NO_INBOUND_COERCER``
     needs a table row, an ``EQUAL_BUT_TYPE_LOST`` needs the coercer to build
     the carrier rather than the bare structure.
+
+    ⚠️ **rc479 (`#T1188`) added a class rather than a point of ceiling.**
+    Contract A reads a decimal text as the exact rational it names, so the
+    one carrier that crosses the wire AS TEXT — ``float`` — comes back a
+    ``Q``. That is a PROMOTION, not a loss: the value is preserved exactly
+    and the carrier is wider, which is the opposite of the ``Vec``/``HV``
+    class this ceiling exists for. It is asserted as an EXACT equality on its
+    own named bucket, so it can absorb nothing: a second member would fail
+    just as loudly as a raised ceiling would have hidden it.
     """
     buckets, _ = _sweep()
     total = sum(len(v) for v in buckets.values())
-    bad = total - len(buckets.get("ROUND_TRIPS", ()))
+    promoted = buckets.get("CONTRACT_A_EXACT_PROMOTION", ())
+    bad = (total - len(buckets.get("ROUND_TRIPS", ())) - len(promoted))
     report = "\n".join(f"    {k:22} {len(v):3}  {sorted(v)}"
                        for k, v in sorted(buckets.items()))
+    assert sorted(promoted) == ["float(float -> Q)"], (
+        f"contract A promotes exactly ONE carrier over the wire — the float "
+        f"whose JSON form is decimal TEXT. Measured: {sorted(promoted)}. A "
+        f"new member is a new contract and needs its own adjudication, not "
+        f"this bucket.\n{report}")
     assert bad <= CEIL_CARRIERS_NOT_ROUND_TRIPPING, (
         f"{bad} of {total} evaluable carriers do not survive a wire "
         f"round-trip (ceiling {CEIL_CARRIERS_NOT_ROUND_TRIPPING}):\n{report}"

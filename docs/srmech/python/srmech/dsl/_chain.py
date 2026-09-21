@@ -255,6 +255,107 @@ from srmech.introspect._writer import (
     emit_if_publishing as _emit,
 )
 from srmech import _json as _srmech_json
+from srmech.amsc.format import canonical_json_default as _canonical_default  # rc479
+
+
+#: rc479 (`#T1188`) — G4, THE CHAIN-LEVEL HALF OF THE CONTRACT-A GUARDS.
+#:
+#: Ops whose PURE projection can answer in an EXACT carrier and whose C peer
+#: cannot, because no C value layer in this library holds a rational
+#: (``dv_value_t`` and ``srmech_mval_t`` are both ``double``). The op-level
+#: guards (G1-G3) sit inside each op's own ``_try_native_*``; this chain runner
+#: does NOT go through those — it hands the whole chain to
+#: ``srmech_dsl_chain_run`` — so the op-level guard is INVISIBLE here and the
+#: same divergence reappears one layer up.
+#:
+#: MEASURED, and it is a wrong VALUE rather than a raise: a
+#: ``parallel_body="autocorrelation"`` chain over the seed ``[7]`` served
+#: ``[49.0]`` in the native cell and ``[Q(49, 1)]`` in the pure one, and with
+#: ``combine="mean"`` over three sectors ``[16.333333333333332]`` against
+#: ``[Q(49, 3)]``. Same call, same version, no error either side.
+#:
+#: THE ROSTER IS THE DERIVED ONE, NOT THE FIVE THIS RC MOVED. Seeding only the
+#: five ops rc479 widened would make the guard a patch for one release; the
+#: property that matters is "the pure projection can answer in a carrier C has
+#: no room for", and the tree already records exactly that — a cascade op whose
+#: DECLARED return type names ``Q`` or ``Qalg``. Several of these were
+#: exact-capable long before rc479 and were equally unguarded here.
+#:
+#: It is SEEDED rather than derived at call time (this is the hot dispatch path
+#: and the tool schema is a large import), and
+#: ``tests/test_dsl_chain_exact_guard_rc479.py`` RE-DERIVES it from the live
+#: declarations and asserts EQUALITY, so a future op joining or leaving the set
+#: is reported rather than silently unguarded. Over-declining costs one chain a
+#: C run; under-declining costs a wrong value in one projection.
+_EXACT_CAPABLE_OPS = frozenset({
+    "as_oct8",
+    "as_quat4",
+    "autocorrelation",
+    "cayley_plane_incidence",
+    "cd_couple_working",
+    "cd_norm_sq",
+    "cd_three_form",
+    "cd_uncouple_working",
+    "cdr_couple_working",
+    "cdr_uncouple_working",
+    "compensated_sum",
+    "correlation_product",
+    "dft_scale",
+    "einsum",
+    "hypercomplex_couple",
+    "hypercomplex_exp",
+    "jordan_product",
+    "kuramoto_gen_term",
+    "kuramoto_sin_term",
+    "moufang_residue",
+    "octonion_dft",
+    "odft_summand",
+    "qdft_summand",
+    "quaternion_dft",
+    "vec_scale",
+})
+
+
+def _names_an_exact_capable_op(node: Any) -> bool:
+    """Does this chain descriptor mention an op from :data:`_EXACT_CAPABLE_OPS`?
+
+    Walks the descriptor rather than reading one field, because an op name
+    reaches the C grammar through several of them — a stage's ``op``, a
+    ``parallel``'s ``body``, a ``fold``'s binary body, a nested ``loop``'s
+    sub-chain. Matching any STRING is deliberate and conservative: the cost of
+    a false positive is one chain running in Python (correct, slower), and the
+    cost of a false negative is a wrong answer in one projection.
+    """
+    if isinstance(node, str):
+        return node in _EXACT_CAPABLE_OPS
+    if isinstance(node, dict):
+        return any(_names_an_exact_capable_op(v) for v in node.values())
+    if isinstance(node, (list, tuple)):
+        return any(_names_an_exact_capable_op(v) for v in node)
+    return False
+
+
+def _has_non_float_number(value: Any) -> bool:
+    """Is there a numeric leaf here that is NOT a ``float``?
+
+    The same predicate the op-level guards use, lifted to a seed of arbitrary
+    shape. A ``bool`` is an ``int`` in Python and answers True, which matches
+    G1 — ``autocorrelation([True, False])`` is exact in the pure projection.
+    A ``Q`` / ``Qalg`` has no ``float`` base either, so it answers True
+    without the walker needing to know those types by name.
+    """
+    if isinstance(value, float):
+        return False
+    if isinstance(value, (int, bool)):
+        return True
+    if isinstance(value, str) or value is None:
+        return False
+    if isinstance(value, dict):
+        return any(_has_non_float_number(v) for v in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(_has_non_float_number(v) for v in value)
+    # a carrier object: exact unless it IS a float, which the first arm caught
+    return hasattr(value, "numerator") or hasattr(value, "denominator")
 
 
 def _describe_shape(value: Any) -> str:
@@ -628,6 +729,16 @@ class Chain:
         stage_list = self._native_stage_list()
         if stage_list is None:
             return _NATIVE_MISS                      # combinator/parallel/empty → pure
+        # rc479 (`#T1188`) — THE CHAIN-LEVEL CONTRACT-A GUARD. The op-level
+        # guards live inside each op's own `_try_native_*`, and this runner
+        # never calls those: it hands the whole chain to the C interpreter. So
+        # an exact-capable op reached through a chain was still answering in
+        # `double` while the pure loop beside it answered in `Q`. Declining
+        # costs one chain's C run; not declining costs a wrong value in one
+        # projection with every gate green. See `_EXACT_CAPABLE_OPS`.
+        if (_names_an_exact_capable_op(stage_list)
+                and _has_non_float_number(input_value)):
+            return _NATIVE_MISS
         input_desc = _value_to_desc(input_value)
         if input_desc is None:
             return _NATIVE_MISS
@@ -635,8 +746,10 @@ class Chain:
         import json
         chain_dict = {"chain": {"name": self.name}, "stage": stage_list}
         try:
-            chain_json = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
-            input_json = json.dumps(input_desc, ensure_ascii=False).encode("utf-8")
+            chain_json = json.dumps(chain_dict, ensure_ascii=False,
+                                    default=_canonical_default).encode("utf-8")
+            input_json = json.dumps(input_desc, ensure_ascii=False,
+                                    default=_canonical_default).encode("utf-8")
         except (TypeError, ValueError):
             return _NATIVE_MISS
         ws_bytes = int(lib.srmech_dsl_chain_run_arena_bytes(

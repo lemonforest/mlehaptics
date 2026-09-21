@@ -854,11 +854,22 @@ static srmech_status_t toml_f64_bignum(const char *dig, int ndig, int E,
 }
 
 /* Parse the exponent tail (chars after 'e'/'E') to a signed int, saturating
- * the magnitude so the range clamp in the caller decides inf/zero. */
-static srmech_status_t toml_f64_scan_exp(const char *s, int *pexpo)
+ * the magnitude so the range clamp in the caller decides inf/zero.
+ *
+ * rc479 (#T1188): `*pover` reports that the magnitude EXCEEDED
+ * SRMECH_DEC_MAX_DIGITS, and this function still returns SRMECH_OK for it.
+ * That split is the whole point. The refusal cannot live here: this runs
+ * BEFORE the caller's all-zero collapse, and `0e999999999` is a legal token
+ * naming ZERO that every reader accepts today — a compiled variant with the
+ * bound moved into this function turned `0e999999999`, `0e-999999999`,
+ * `-0e999999999` and `0.0e999999999` into SRMECH_ERR_LIMIT. Full SYNTACTIC
+ * validation stays here (`0e` / `0eX` -> SRMECH_ERR_BAD_INPUT, unchanged);
+ * the caller refuses only when the significand is non-zero. */
+static srmech_status_t toml_f64_scan_exp(const char *s, int *pexpo, int *pover)
 {
-    int j = 0, esign = 1, expo = 0, seen = 0;
+    int j = 0, esign = 1, expo = 0, seen = 0, over = 0;
     assert(s != NULL && pexpo != NULL);
+    assert(pover != NULL);
     if (s[0] == '+' || s[0] == '-') {
         esign = (s[0] == '-') ? -1 : 1;
         j = 1;
@@ -866,12 +877,48 @@ static srmech_status_t toml_f64_scan_exp(const char *s, int *pexpo)
     for (; s[j] != '\0'; j++) {
         if (s[j] < '0' || s[j] > '9') { return SRMECH_ERR_BAD_INPUT; }
         expo = expo * 10 + (s[j] - '0');
+        if (expo > SRMECH_DEC_MAX_DIGITS) { over = 1; }
         if (expo > 100000) { expo = 100000; }
         seen = 1;
     }
     if (seen == 0) { return SRMECH_ERR_BAD_INPUT; }
     assert(expo >= 0 && expo <= 100000);
     *pexpo = esign * expo;
+    *pover = over;
+    return SRMECH_OK;
+}
+
+/* rc479 (#T1188): CONTRACT A's digit bound on a SCANNED float token —
+ * SRMECH_OK when the unreduced (num, den) pair fits, SRMECH_ERR_LIMIT when it
+ * does not.
+ *
+ * The counts are exact CLOSED FORMS over the scan form, never an estimate,
+ * because the digit run carries no leading zero: the numerator has
+ * `nd + max(E, 0)` digits and the denominator `1 + max(-E, 0)`. `over` covers
+ * an exponent whose magnitude the scanner saturated before it could be
+ * counted. It is a SEPARATE function so `toml_f64_scan` stays inside JPL
+ * Rule 4's 60 lines — inlined it took that function to 68.
+ *
+ * ⚠️ IT IS ONLY EVER CALLED WITH A NON-ZERO SIGNIFICAND. An all-zero one
+ * names zero whatever its exponent says and builds nothing, so the caller
+ * returns before reaching here; a compiled variant that bounded first turned
+ * four legal zero spellings into errors. */
+static srmech_status_t toml_f64_dec_bound(int nd, int E, int over, int dcap)
+{
+    assert(nd > 0);
+    assert(dcap >= 64);
+    if (over != 0) { return SRMECH_ERR_LIMIT; }
+    if (E > 0 && nd > SRMECH_DEC_MAX_DIGITS - E) { return SRMECH_ERR_LIMIT; }
+    if (E <= 0 && -E > SRMECH_DEC_MAX_DIGITS - 1) { return SRMECH_ERR_LIMIT; }
+    if (nd > SRMECH_DEC_MAX_DIGITS) { return SRMECH_ERR_LIMIT; }
+    /* rc404 (`#T1069`): a FIXED digit capacity -> LIMIT. rc479 tightened `>`
+     * to `>=`: the old form admitted `ndig == dcap == 64` while BOTH callers
+     * assert `ndig < 64`, a latent off-by-one unreachable through today's
+     * 63-char token cap and live the moment the staging widens. It stays a
+     * LIVE bound (not assert-only) — rc397 red'd the pedantic build when
+     * `dcap` became assert-only under -DNDEBUG, so `dcap` keeps a non-assert
+     * reader on every build. */
+    if (nd >= dcap) { return SRMECH_ERR_LIMIT; }
     return SRMECH_OK;
 }
 
@@ -884,7 +931,7 @@ static srmech_status_t toml_f64_scan(const char *buf, char *dig, int dcap,
 {
     char raw[64];
     int nraw = 0, frac = 0, seen = 0, dot = 0, k = 0, had_exp = 0;
-    int lo, hi, i, E;
+    int lo, hi, i, E, over = 0, nd;
     srmech_status_t st;
     assert(buf != NULL && dig != NULL && pndig != NULL);
     assert(pE != NULL && pneg != NULL && dcap >= 64);
@@ -911,7 +958,7 @@ static srmech_status_t toml_f64_scan(const char *buf, char *dig, int dcap,
     E = -frac;
     if (had_exp) {
         int expo = 0;
-        st = toml_f64_scan_exp(buf + k, &expo);
+        st = toml_f64_scan_exp(buf + k, &expo, &over);
         if (st != SRMECH_OK) { return st; }
         E += expo;
     }
@@ -921,11 +968,13 @@ static srmech_status_t toml_f64_scan(const char *buf, char *dig, int dcap,
     while (hi >= lo && raw[hi] == '0') { hi--; }
     if (hi < lo) { *pndig = 0; *pE = 0; return SRMECH_OK; }   /* all zero */
     E += (nraw - 1 - hi);                                      /* trailing 0s */
-    /* rc404 (`#T1069`): a FIXED digit capacity -> LIMIT. The condition itself
-     * is untouched — rc397 red'd the pedantic build here when `dcap` became
-     * assert-only under -DNDEBUG, so this stays a LIVE bound (not assert-only)
-     * and `dcap` keeps a non-assert reader on every build. */
-    if (hi - lo + 1 > dcap) { return SRMECH_ERR_LIMIT; }        /* live dcap bound (not assert-only) */
+    /* rc479 (#T1188): CONTRACT A's digit bound, applied HERE — after the
+     * all-zero collapse above and after the exponent's syntax check. The
+     * test itself lives in toml_f64_dec_bound so this function stays inside
+     * JPL Rule 4's 60 lines; it was 68 with the test inlined. */
+    nd = hi - lo + 1;
+    st = toml_f64_dec_bound(nd, E, over, dcap);
+    if (st != SRMECH_OK) { return st; }
     for (i = 0; i <= hi - lo; i++) { dig[i] = raw[lo + i]; }
     *pndig = hi - lo + 1;
     *pE = E;

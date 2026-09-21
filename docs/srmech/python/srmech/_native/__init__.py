@@ -298,6 +298,34 @@ from typing import Optional
 #        ``ws_bound`` on every call, so the stale library's answer is
 #        self-consistent and nothing else notices. This pin is the only refusal.
 #
+# v30 (rc479, `#T1188`) — CONTRACT A: A DECIMAL LITERAL PAST THE DIGIT BOUND IS
+#        REFUSED RATHER THAN ROUNDED. The v10 / v12 shape and the v12 INSTANCE
+#        — the same two exported symbols, the same status constant. No
+#        signature changes shape; `srmech_json_parse` and `srmech_toml_parse`
+#        RETURN A DIFFERENT VALUE for a class of input. Measured at the
+#        exported symbols, both parsers: `1e4300` / `1e-4300` / `5e-4300` /
+#        `1e99999` / `1e1000000` went `SRMECH_OK` (inf or 0.0) and now answer
+#        `SRMECH_ERR_LIMIT`, while `1e400` / `1e-400` / `1e4299` / `1e-4299` /
+#        `1e308` / `1e309` are unchanged — a boundary, not a ceiling.
+#
+#        THE PAIRING THIS REFUSES is an rc478 `.so` under rc479 Python. Both
+#        load, neither errors, and the stale library simply ANSWERS a token
+#        this release refuses — the exact silent-divergence shape v21 and v26
+#        bumped for, one projection serving a rounded value where the other
+#        raises.
+#
+#        WHY the C node does not return the rational itself: no C value layer
+#        in this library can hold one (`dv_value_t` and `srmech_mval_t` both
+#        carry `double`), so the exact reading lives in the Python projection
+#        and this binding DECLINES a float document to it — the decline
+#        contract that already ships, now with a CARRIER category beside the
+#        precision one rc397 removed.
+#
+#        The five zero spellings are unaffected: an all-zero significand names
+#        zero whatever its exponent says, so `0e999999999` and its siblings
+#        still answer OK with the sign preserved, and `0e` / `0eX` still answer
+#        BAD_INPUT. `SRMECH_GENOME_FORMAT_VERSION` stays 20.
+#
 # v29 (rc477, `#T1188`) — THE AXIS IS THE NEAREST WORD, AND THE SCALE IS EXACT.
 #        SERVED VALUES MOVE (v21 / v26 / v27 / v28's ground), and nothing else.
 #        Two halves, and neither is the one the prose at each site named.
@@ -365,7 +393,7 @@ from typing import Optional
 #        the stale library just serves the misrounded root, and the glue here
 #        rebuilds it into an exact-looking ``Q``. Silent wrong value, no other
 #        symptom, which is the shape v21 and v26 bumped for.
-EXPECTED_ABI_VERSION: int = 29
+EXPECTED_ABI_VERSION: int = 30
 
 # Back-compat alias: downstream code reading ``_native.ABI_VERSION`` gets the
 # expected (compiled-against) ABI == EXPECTED_ABI_VERSION (NOT the runtime-
@@ -18261,13 +18289,34 @@ def config_load_file(path: str) -> None:
 _TOML_ARENA_CAP = 256 * 1024 * 1024
 
 
+class _DoubleCannotCarryExact(Exception):
+    """The walk met a C ``double`` where contract A promises an exact rational.
+
+    rc479 (`#T1188`). Not an error and never seen by a caller: it is the
+    internal signal that turns into the ``None`` DECLINE both loaders already
+    speak, so the stdlib floor re-parses the document and returns the exact
+    ``Q``. It exists because the decision can only be made mid-walk — a
+    document's float literals are not knowable from its bytes without lexing
+    it — and raising out of the walk costs one exception per declining
+    document rather than a second full traversal.
+    """
+
+
 def _toml_tree_to_dict(node: "_TomlValue"):
     """Walk a parsed srmech_toml_value_t node into a native Python object.
 
-    STRING→str / INT→int / FLOAT→float / BOOL→bool / ARRAY→list / TABLE→dict.
+    STRING→str / INT→int / BOOL→bool / ARRAY→list / TABLE→dict.
     Every scalar is copied out here (string_at + decode materialise fresh
     Python objects), so the caller may free the parse arena the instant this
-    returns — nothing in the result still aliases into ``ws``."""
+    returns — nothing in the result still aliases into ``ws``.
+
+    ⚠️ **FLOAT does not map (rc479, `#T1188`).** Under contract A a decimal
+    literal is the exact rational it names, and this tree carries a C
+    ``double`` — a projection of that rational, not the rational. Rather than
+    hand the caller a silently different value from the one the pure cell
+    returns, the walk raises :class:`_DoubleCannotCarryExact` and
+    :func:`toml_loads_c` turns it into the ``None`` decline the front door
+    already handles."""
     t = node.type
     if t == SRMECH_TOML_STRING:
         ptr = node.u.str.ptr
@@ -18277,7 +18326,7 @@ def _toml_tree_to_dict(node: "_TomlValue"):
     if t == SRMECH_TOML_INT:
         return int(node.u.i)
     if t == SRMECH_TOML_FLOAT:
-        return float(node.u.f)
+        raise _DoubleCannotCarryExact("srmech_toml: float literal")
     if t == SRMECH_TOML_BOOL:
         return bool(node.u.b)
     if t == SRMECH_TOML_ARRAY:
@@ -18301,10 +18350,19 @@ def toml_loads_c(text: str):
     Returns a dict on success, or ``None`` when the C parser DECLINES the
     document. A decline happens on a syntax error or a construct outside the
     supported subset — datetimes, quoted keys, non-decimal ints, or an int that
-    overflows int64. FLOATS self-host: as of rc397 (`#T1066`) srmech_toml's
-    decimal→double parse is correctly-rounded (Clinger fast path + a
-    srmech_bigint exact tail), so a float value is bit-identical to
-    ``float(str)`` / tomllib and no longer forces a decline. A ``None`` return
+    overflows int64.
+
+    ⚠️ **A FLOAT LITERAL DECLINES AGAIN as of rc479 (`#T1188`), and for a
+    different reason than it did before rc397.** rc397 (`#T1066`) made
+    srmech_toml's decimal→double parse correctly-rounded (Clinger fast path +
+    a srmech_bigint exact tail), so the value was bit-identical to
+    ``float(str)`` / tomllib and the decline it removed was a PRECISION
+    decline. That remains true and is not retracted. What changed is the
+    CONTRACT: under contract A the front door returns the exact rational a
+    decimal literal names, and a C ``double`` is a projection of that rational
+    rather than the rational — so the decline is now a CARRIER decline, and it
+    is what keeps a native cell and a pure cell returning the same object. A
+    ``None`` return
     is the caller's signal to ride the stdlib tomllib/tomli fallback, exactly
     like the DSL chain bridge. Raises RuntimeError only if called with no native
     srmech_toml_parse symbol present (guard with HAS_NATIVE + hasattr)."""
@@ -18330,7 +18388,10 @@ def toml_loads_c(text: str):
             ctypes.byref(out),
         )
         if rc == SRMECH_OK:
-            return _toml_tree_to_dict(out.contents)
+            try:
+                return _toml_tree_to_dict(out.contents)
+            except _DoubleCannotCarryExact:
+                return None     # rc479: a float literal, exact on the floor
         if rc == SRMECH_ERR_OVERFLOW and ws_len < _TOML_ARENA_CAP:
             ws_len = min(ws_len * 2, _TOML_ARENA_CAP)
             continue
@@ -18414,7 +18475,9 @@ def _json_tree_to_obj(node: "_JsonValue"):
     if t == SRMECH_JSON_INT:
         return int(node.u.i)
     if t == SRMECH_JSON_DOUBLE:
-        return float(node.u.f)
+        # rc479 (`#T1188`): see _toml_tree_to_dict — a double cannot carry the
+        # exact rational contract A promises, so the walk DECLINES.
+        raise _DoubleCannotCarryExact("srmech_json: double literal")
     if t == SRMECH_JSON_STRING:
         ptr = node.u.str.ptr
         if not ptr:
@@ -18442,7 +18505,10 @@ def json_loads_c(text: str):
     DECLINES — because the C parser returned non-OK: a syntax error,
     ``NaN``/``Infinity``, a lone surrogate, an integer outside int64, a numeric
     literal >= 63 bytes, nesting past SRMECH_JSON_MAX_DEPTH = 64, trailing
-    garbage, or an arena that blew the cap. A ``None`` return is the caller's
+    garbage, or an arena that blew the cap — **or, since rc479 (`#T1188`),
+    because the document carries a DOUBLE literal**, which cannot hold the
+    exact rational contract A promises (see :func:`toml_loads_c` for the same
+    carrier decline on the TOML side). A ``None`` return is the caller's
     signal to ride the stdlib ``json.loads`` fallback, exactly like
     :func:`toml_loads_c`.
 
@@ -18484,7 +18550,10 @@ def json_loads_c(text: str):
             ctypes.byref(out),
         )
         if rc == SRMECH_OK:
-            return _json_tree_to_obj(out.contents)
+            try:
+                return _json_tree_to_obj(out.contents)
+            except _DoubleCannotCarryExact:
+                return None     # rc479: a double literal, exact on the floor
         if rc == SRMECH_ERR_OVERFLOW and ws_len < _JSON_ARENA_CAP:
             ws_len = min(ws_len * 2, _JSON_ARENA_CAP)
             continue

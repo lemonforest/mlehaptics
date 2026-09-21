@@ -10243,8 +10243,8 @@ def _register_primitive_class_tools() -> None:
                     "would silently leak ℍ). The per-sample coercion step of "
                     "quaternion_dft, public so the declared chain's coercion "
                     "map names a registered op." + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("v", "list[float] | list[Q]", True, "4- or ℍ-valued 8-vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
-            returns=R("list[float] | list[Q]", "the 4-component sample — list[Q] (exact, via cd_project) for an exact operand, list[float] otherwise"),
+            parameters=(P("v", "list[float] | list[Q] | list[Qalg]", True, "4- or ℍ-valued 8-vector; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, a Qalg leaf the exact-ALGEBRAIC rung (rc479 — it is what quaternion_dft now RETURNS, so the round trip is closed), one float anywhere the float64 one"),),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the 4-component sample — list[Q] (exact, via cd_project) for an exact operand, list[Qalg] where a leaf is an exact algebraic number, list[float] otherwise"),
             composes=("srmech.cascade.cd_project",),   # rc466: the exact arm's 8->4 realification
             smoke_test_hint={"v": "[1.0, 2.0, 3.0, 4.0]"},
         ),
@@ -10256,8 +10256,8 @@ def _register_primitive_class_tools() -> None:
                     "per-sample coercion step of octonion_dft, public so the "
                     "declared chain's coercion map names a registered op."
                     + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("vec", "list[float] | list[Q]", True, "4- or 8-component; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, one float anywhere the float64 one"),),
-            returns=R("list[float] | list[Q]", "the 8-component sample — list[Q] (exact, via cd_promote) for an exact operand, list[float] otherwise"),
+            parameters=(P("vec", "list[float] | list[Q] | list[Qalg]", True, "4- or 8-component; The LEAVES select the carrier (rc466, `#T1188`): integers / Q / [num, den] pairs take the EXACT-Q rung, a Qalg leaf the exact-ALGEBRAIC rung (rc479 — it is what octonion_dft now RETURNS, so the round trip is closed), one float anywhere the float64 one"),),
+            returns=R("list[float] | list[Q] | list[Qalg]", "the 8-component sample — list[Q] (exact, via cd_promote) for an exact operand, list[Qalg] where a leaf is an exact algebraic number, list[float] otherwise"),
             composes=("srmech.cascade.cd_promote",),   # rc466: the exact arm's zero-extension
             smoke_test_hint={"vec": "[1.0, 2.0, 3.0, 4.0]"},
         ),
@@ -10428,12 +10428,21 @@ def _register_primitive_class_tools() -> None:
                     "multiply-add sum — JPL-clean: no FFT, no recursion, no "
                     "transcendentals, embedded-ready) when HAS_NATIVE; the no-"
                     "native fallback computes the SAME direct sum in pure Python "
-                    "(math.fsum; numpy-free since v0.7.0rc30, UPSTREAM §22). Parity "
+                    "(the Neumaier compensated_sum over correlation_product; "
+                    "numpy-free since v0.7.0rc30, UPSTREAM §22 — this said "
+                    "'math.fsum' through rc478 and that call has not been in the "
+                    "body since rc420). Parity "
                     "of the native sum to FFT round-off (~1e-12, NOT bit-exact — "
-                    "different accumulation order). n==0 is []." + PUBLISH_OPT_IN_NOTE,
+                    "different accumulation order). n==0 is []. THE CARRIER IS "
+                    "THE OPERAND'S (rc479, `#T1188`): the entry no longer casts "
+                    "the sequence to float, so an exact sample returns exact "
+                    "sums and a float sample is byte-identical to every prior "
+                    "rc; the C peer marshals doubles and is declined for a "
+                    "non-float leaf rather than answering a different number "
+                    "from the pure route." + PUBLISH_OPT_IN_NOTE,
             parameters=(P("x", "sequence", True, "the real signal (length n)"),),
-            returns=R("list[float]",
-                      "length-n circular autocorrelation r; r[0] = Σ x² = energy"),
+            returns=R("list[float] | list[Q]",
+                      "length-n circular autocorrelation r; r[0] = Σ x² = energy. list[Q] for an exact sample (rc479), list[float] for a float one"),
         ),
         # Quaternion / octonion DFTs (#863, F380) — the native transform for a
         # Klein-4 object. quaternion_dft GRADUATED first-class at 0.9.0rc110
@@ -10475,7 +10484,14 @@ def _register_primitive_class_tools() -> None:
                   "pure-imaginary 4-vector; default 'i'"),
                 P("inverse", "bool", False, "inverse QDFT (conjugate twiddle + 1/N); default False"),
             ),
-            returns=R("list[list[float]]", "N quaternions (4-component lists)"),
+            returns=R("list[list[float]] | list[list[Q]] | list[list[Qalg]]",
+                      "N quaternions (4-component lists). THE CARRIER IS THE "
+                      "OPERAND'S (rc479, `#T1188`): a float sample returns "
+                      "list[list[float]] byte-identically to every prior rc; an "
+                      "exact sample returns list[list[Q]], or list[list[Qalg]] "
+                      "where the turn's cosine and scaled sine are not both "
+                      "rational — as_quat4 accepts every one of those back, so "
+                      "the transform round-trips its own output"),
         ),
         ToolEntry(
             name="srmech.cascade.octonion_dft", owner="srmech",
@@ -10517,7 +10533,14 @@ def _register_primitive_class_tools() -> None:
                 P("two_sided_right_axis", "str", False, "right twiddle axis μ_r; default 'j'"),
                 P("inverse", "bool", False, "inverse ODFT (one-sided only); default False"),
             ),
-            returns=R("list[list[float]]", "N octonions (8-component lists)"),
+            returns=R("list[list[float]] | list[list[Q]] | list[list[Qalg]]",
+                      "N octonions (8-component lists). THE CARRIER IS THE "
+                      "OPERAND'S (rc479, `#T1188`): a float sample returns "
+                      "list[list[float]] byte-identically to every prior rc; an "
+                      "exact sample returns list[list[Q]], or list[list[Qalg]] "
+                      "where the turn's cosine and scaled sine are not both "
+                      "rational — as_oct8 accepts every one of those back, so "
+                      "the transform round-trips its own output"),
         ),
         # The lightweight matched-filter PEAK READ (v0.9.0rc112; #1234 Item 1d,
         # the F1000→F1001→F1002 refinement) — the READ counterpart to the full
@@ -15586,8 +15609,12 @@ def _register_primitive_class_tools() -> None:
                     "with theta). Composition of calculus.{sin,cos} (C-dispatched) "
                     "+ Class-K pin_slot_at_zero — no new primitive class. "
                     "F577/F552; #928 W17." + PUBLISH_OPT_IN_NOTE,
-            parameters=(P("theta", "float", True,
-                          "phase angle in radians"),
+            parameters=(P("theta", "float | Q", True,
+                          "phase angle in radians. THE CARRIER IS THE OPERAND'S "
+                          "(rc479, `#T1188`): the door admits an exact theta, "
+                          "which then takes rational.sin/cos's EXACT-rational "
+                          "route rather than the Q61 one — a different and finer "
+                          "number for the same angle, measured"),
                         P("handedness", "int", False,
                           "rotation-sense convention +1 or -1 (both first-class; "
                           "default +1 is an ARBITRARY convention; -1 = Class-K "
@@ -15597,9 +15624,12 @@ def _register_primitive_class_tools() -> None:
                           "and distinct; default ('sin','cos') → E=sin, B=cos")),
             returns=R("tuple",
                       "(E, B, handedness, klein4_quadrant) — the quadrature "
-                      "legs (each the Q61 dyadic rational Q that "
-                      "srmech.math.rational.sin / cos return, of theta read at "
-                      "float64 resolution — this said 'float' until rc472), "
+                      "legs (each the exact rational Q that "
+                      "srmech.math.rational.sin / cos return: the Q61 dyadic "
+                      "for a FLOAT theta read at float64 resolution, the "
+                      "61-fractional-bit exact-rational reduction for an int / "
+                      "Q one — this said 'float' until rc472 and implied one "
+                      "route until rc479), "
                       "the STABLE chosen handedness, and (sign E, sign B) the "
                       "Klein-4 sector"),
         ),

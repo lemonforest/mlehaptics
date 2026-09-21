@@ -1017,7 +1017,7 @@ def test_native_bus_symbols_present():
     from srmech import _native
     if not _native.HAS_NATIVE:
         pytest.skip("native not loaded; nothing to verify")
-    # ABI-PIN: NATIVE_ABI_VERSION == 29
+    # ABI-PIN: NATIVE_ABI_VERSION == 30
     # ⚠️ rc455: the local below is the SAME grep-invisible site the note that
     # follows describes. It was found by hand this time, not by the
     # `ABI_VERSION == 23` sweep, which matched only the comment above.
@@ -1030,7 +1030,7 @@ def test_native_bus_symbols_present():
     # a SECOND one, of a different kind - indirection through a local, introduced
     # by the previous fix. Keeping a comment that spells NAME == LITERAL restores
     # what the interpolation took away, without giving back the drift it prevents.
-    want_abi = 29
+    want_abi = 30
     assert _native.NATIVE_ABI_VERSION == want_abi, (
         f"ABI {want_abi} expected (rc475 `#T1188` fixed the Zassenhaus core's "
         f"bignum pool WIDTH — bp_buf spaced 30 poly buffers deg+1 apart while "
@@ -1115,8 +1115,8 @@ def test_abi_version_is_pinned():
     # `ABI-PIN:` comment AND any int-valued local whose name matches /abi/)
     # out of tests/ and compares each to the live EXPECTED_ABI_VERSION. The
     # grep target stays for the human; the gate is now what catches the script.
-    # ABI-PIN: EXPECTED_ABI_VERSION == 29   (grep target - see the note above)
-    want_abi = 29
+    # ABI-PIN: EXPECTED_ABI_VERSION == 30   (grep target - see the note above)
+    want_abi = 30
     assert _native.EXPECTED_ABI_VERSION == want_abi, (
         f"EXPECTED_ABI_VERSION should be {want_abi}; got "
         f"{_native.EXPECTED_ABI_VERSION}"

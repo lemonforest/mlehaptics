@@ -31,6 +31,7 @@ import re
 from pathlib import Path
 
 import pytest
+from tests import _carrier_projection
 
 from srmech.cascade import compose as _compose
 from srmech.dsl import _cascade_chain as _cc
@@ -135,8 +136,11 @@ def _runs_in_c(name, catalog):
     chain.setdefault("name", name)
     chain.setdefault("summary", "")
     chain.setdefault("returns", "")
+    # rc479 (`#T1188`): ONE carrier — see tests/_carrier_projection.py.
+    chain = _carrier_projection.double_projection(chain)
+    _inp = _carrier_projection.double_projection(case.get("inputs") or {})
     cj = json.dumps(chain).encode("utf-8")
-    xj = json.dumps({"inputs": case.get("inputs") or {}}).encode("utf-8")
+    xj = json.dumps({"inputs": _inp}).encode("utf-8")
     n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
     ws = (ctypes.c_char * n)()
     cap = max(n // 2, 65536)

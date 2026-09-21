@@ -63,16 +63,36 @@ Two consequences worth relying on
    raises for bad input — it declines — so a caller's
    ``except json.JSONDecodeError`` keeps working unchanged at every repointed
    call site, with byte-identical message and position.
-2. **Floats are the stdlib's.** ``srmech_json.c`` parses doubles with
-   ``strtod``, which is correctly rounded, matching CPython's ``float()``. This
-   is checked directly by ``tests/test_json_read_selfhost_rc401.py`` rather
-   than assumed. rc402 ADJUDICATED that path and deliberately left it alone:
+2. **Numbers are read EXACTLY — contract A, rc479 (`#T1188`).** A decimal
+   literal is the rational it already names, so ``{"x": 0.1}`` loads as
+   ``Q(1, 10)`` and not as binary64's ``3602879701896397 / 2**55``. The floor
+   installs :func:`srmech.math.q.parse_float_exact` as its ``parse_float=``
+   default; ``nan`` / ``inf`` / ``-inf`` never reach it on this front door
+   (CPython's ``json`` routes them through ``parse_constant``), and ``-0.0``
+   stays the float it is because ``Q`` has no signed zero (rule Z1).
+
+   **Category C of the decline contract** follows from it, and it is what keeps
+   the two projections equal: ``srmech_json.c`` yields a C ``double`` and no C
+   value layer in this library can hold a rational (measured — ``dv_value_t``
+   and ``srmech_mval_t`` both carry ``double``), so the native path DECLINES
+   any document carrying a floating literal and the floor answers with the
+   exact ``Q``. A native cell and a pure cell therefore return the SAME object
+   for the same document, which silently returning doubles from C would not.
+   The cost is one wasted C parse on such a document; correctness is never at
+   stake, which is the decline contract's whole point.
+
+   rc402 ADJUDICATED the ``strtod`` path and deliberately left it alone:
    ``strtod`` returns ``HUGE_VAL`` on overflow and ``0.0`` on underflow, which
    is exactly what CPython's ``json`` does (``1e400`` -> ``inf``, ``1e-400`` ->
    ``0.0``, ``5e-324`` -> the smallest subnormal), so adding an ``errno`` check
-   there would have REGRESSED parity by declining input CPython accepts. A
-   verified non-defect is a finding; it is pinned in
-   ``c/test/test_srmech_json_number_rc402.c``.
+   there would have REGRESSED parity by declining input CPython accepts. **That
+   adjudication is PROJECTION-SCOPED as of rc479, not retracted**: it stays
+   true of the DOUBLE projection a bare-C host reads, and it is not a statement
+   about the exact one, which has no double to round. It is pinned in
+   ``c/test/test_srmech_json_number_rc402.c``. What rc479 DOES change in C is
+   the other end: a literal past the A1 digit bound now returns
+   ``SRMECH_ERR_LIMIT`` rather than ``inf``, so both projections refuse the
+   same token.
 
 The write half is still NOT here — and rc403 re-measured why
 ------------------------------------------------------------
@@ -143,6 +163,25 @@ from typing import Any
 #: import. It is the correct thing rather than a shim around the break.
 JSONDecodeError = _stdlib_json.JSONDecodeError
 
+#: Contract A's reader, resolved ONCE and cached (rc479, `#T1188`).
+#:
+#: ``srmech.math.q`` imports ``srmech._native`` and the two Class-N modules
+#: beneath it, so this module cannot import it at module scope without making
+#: the JSON front door drag the whole math stack in at ``import srmech``. The
+#: hook is resolved on first parse and held here afterwards — a module global,
+#: not a per-literal import, because ``parse_float`` is called once per numeric
+#: literal and a document can carry thousands.
+_PARSE_FLOAT = None
+
+
+def _exact_parse_float():
+    """The ``parse_float=`` callable the stdlib floor is given."""
+    global _PARSE_FLOAT
+    if _PARSE_FLOAT is None:
+        from .math.q import parse_float_exact
+        _PARSE_FLOAT = parse_float_exact
+    return _PARSE_FLOAT
+
 
 def loads(text: str) -> Any:
     """Parse a JSON string — native ``srmech_json`` first, stdlib floor.
@@ -167,7 +206,7 @@ def loads(text: str) -> Any:
         obj = _native.json_loads_c(text)
         if obj is not None:
             return obj
-    return _stdlib_json.loads(text)
+    return _stdlib_json.loads(text, parse_float=_exact_parse_float())
 
 
 def load(fp) -> Any:

@@ -39,6 +39,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
+from .._json import _exact_parse_float          # rc479 (`#T1188`): contract A
 from ._server import MCPServer
 
 
@@ -230,7 +231,14 @@ def _make_handler_class(
                 # MCP JSON-RPC wire — untrusted external input on a published protocol contract.
                 # Self-hosting it onto srmech._json is a separate decision with a different risk
                 # profile from reading srmech's own descriptors, so the READ self-host stops here.
-                request = json.loads(raw.decode("utf-8"))
+                #
+                # rc479 (`#T1188`) — CONTRACT A reaches this wire without
+                # crossing that boundary: the PARSER stays stdlib and only its
+                # `parse_float=` default moves, so an argument spelled `0.1`
+                # arrives as the exact Q(1, 10). The stdio transport carries
+                # the identical substitution; see `_stdio.py`.
+                request = json.loads(raw.decode("utf-8"),
+                                     parse_float=_exact_parse_float())
             except (UnicodeDecodeError, json.JSONDecodeError) as exc:
                 # JSON parse error rides over SSE per spec.
                 err_resp = {

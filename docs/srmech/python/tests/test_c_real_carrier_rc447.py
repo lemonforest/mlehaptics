@@ -47,6 +47,7 @@ import json
 import struct
 
 import pytest
+from tests import _carrier_projection
 
 from srmech.cascade import compose as _compose
 from srmech.dsl import _cascade_chain as _cc
@@ -85,7 +86,10 @@ def _hdr(chain):
 
 def _c_run(chain, inputs):
     lib = _lib()
-    cj = json.dumps(_hdr(chain), ensure_ascii=False).encode("utf-8")
+    # rc479 (`#T1188`): ONE carrier — see tests/_carrier_projection.py.
+    _c = _carrier_projection.double_projection(_hdr(chain))
+    inputs = _carrier_projection.double_projection(inputs)
+    cj = json.dumps(_c, ensure_ascii=False).encode("utf-8")
     xj = json.dumps({"inputs": inputs}, ensure_ascii=False).encode("utf-8")
     n = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
     ws = (ctypes.c_char * n)()

@@ -186,7 +186,15 @@ def _namespace_from_native(payload: bytes) -> argparse.Namespace:
     # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this parses
     # user-supplied CLI input (argv / a named file / stdin), not an srmech-authored
     # descriptor. The READ self-host deliberately stops at the process boundary.
-    ns = json.loads(payload.decode("utf-8"))
+    #
+    # rc479 (`#T1188`) — contract A without crossing it: the PARSER stays
+    # stdlib and only its `parse_float=` default moves. The two float-typed
+    # fields re-coerced below (`poll_interval`, `timeout`) take `float(...)`
+    # explicitly, so a Q arriving here becomes the float the argparse namespace
+    # declares — the exact reading is at the door, the declared type at the use.
+    from .._json import _exact_parse_float
+    ns = json.loads(payload.decode("utf-8"),
+                    parse_float=_exact_parse_float())
     for key in ("pid", "limit"):
         if ns.get(key) is not None:
             ns[key] = int(ns[key])

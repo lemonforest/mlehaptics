@@ -67,6 +67,7 @@ from typing import Any, Dict, List, Mapping, Optional, Tuple
 # ``test_c_claim_resolution_rc300``. The leading underscore dodges the anchored
 # ``^srmech_`` matcher. Do NOT "normalise" this back to ``srmech_toml``.
 from srmech import _toml as _srmech_toml
+from .format import canonical_json_default as _canonical_json_default  # rc479 (`#T1188`)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -377,8 +378,12 @@ def descriptor_hash(path: Path) -> str:
     """
     from .format import sha256_bytes  # local import; avoids cycle
     parsed = _srmech_toml.loads(path.read_bytes().decode("utf-8"))
+    # rc479 (`#T1188`): the default= keeps this hash — and so every
+    # committed collector_descriptor_hash — in the DOUBLE projection
+    # contract A did not change. See amsc.format.canonical_json_default.
     canonical = json.dumps(
-        parsed, sort_keys=True, ensure_ascii=False
+        parsed, sort_keys=True, ensure_ascii=False,
+        default=_canonical_json_default
     ).encode("utf-8")
     return sha256_bytes(canonical)
 

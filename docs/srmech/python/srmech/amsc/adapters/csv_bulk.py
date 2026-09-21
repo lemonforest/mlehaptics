@@ -13,6 +13,7 @@ import io
 import sys
 from typing import Any, Dict, Iterator
 
+from ...math.q import parse_float_exact as _parse_float_exact  # rc479 (`#T1188`)
 from ..descriptor import Descriptor
 from . import _base
 
@@ -121,6 +122,22 @@ def parse(
 
 
 def _coerce(text: str, value_type: str) -> Any:
+    """One CSV cell as the typed value its field-map declares.
+
+    ⚠️ **rc479 (`#T1188`) — a CSV cell IS caller decimal TEXT, and contract A
+    covers it.** This site read `float(text)`, which no ``json``/``tomllib``
+    predicate can see: it reaches a float through neither front door nor any
+    stdlib loader, so the rc479 entry-point census found it only by a
+    `float(<str-annotated parameter>)` scan. Leaving it rounding while a JSON
+    literal beside it is read exactly would be two contracts wearing one name,
+    with the difference decided by which adapter a descriptor happens to name.
+
+    The refusal contract is unchanged: a cell that names no rational — or one
+    past the :data:`~srmech.math.q.MAX_DEC_DIGITS` bound — still returns
+    ``None``, exactly as a ``ValueError`` from ``float()`` did, so a caller's
+    "unparseable cell" handling is untouched. ``nan`` / ``inf`` / ``-inf`` and
+    a signed zero stay floats under rule Z1.
+    """
     text = text.strip()
     if not text:
         return None
@@ -128,7 +145,7 @@ def _coerce(text: str, value_type: str) -> Any:
         return text
     if value_type == "float":
         try:
-            return float(text)
+            return _parse_float_exact(text)
         except ValueError:
             return None
     if value_type == "int":

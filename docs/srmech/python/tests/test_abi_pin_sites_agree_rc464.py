@@ -65,7 +65,7 @@ from srmech import _native
 
 _TESTS = os.path.dirname(os.path.abspath(__file__))
 
-#: ``ABI-PIN: EXPECTED_ABI_VERSION == 29  (any trailing prose)``, as it appears
+#: ``ABI-PIN: EXPECTED_ABI_VERSION == 30  (any trailing prose)``, as it appears
 #: inside a comment token. Two of the live sites carry a ``⚠️`` before the
 #: keyword, which sits outside the match rather than needing to be spelled.
 #:

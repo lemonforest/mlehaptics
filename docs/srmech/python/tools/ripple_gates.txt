@@ -1025,3 +1025,63 @@ tests/test_curated_line_citations_resolve_rc473.py
 #    Any rc that edits a remedy string, a hooks doc or a notes recipe moves it.
 #    Pure-Python, no native .so.
 tests/test_git_export_advice_absent_rc473.py
+
+# -- the READER-CONTRACT ripple, added rc479 (`#T1188`) AFTER CI FOUND IT -----
+#    These five were NOT in this list, and the rc479 contract-A round is what
+#    proved that a gap. The local ripple run was GREEN on its 3264 items while
+#    four distinct classes of real breakage sat outside it, and CI found all
+#    four at once across seven cells:
+#      * test_dsl_parallel_c_rc455 -- the DSL chain runner hands a whole chain
+#        to C, so an op's OWN native guard is invisible one layer up. A
+#        parallel `autocorrelation` over the seed [7] served [49.0] native
+#        against [Q(49, 1)] pure. A silent wrong value in one projection, which
+#        is the class this project ranks first, and nothing local could see it.
+#      * test_dsl_chain_exact_guard_rc479 -- the guard that closes it, plus the
+#        re-derivation of its roster from the declared return types.
+#      * test_toml_float_correct_round_rc397 -- reads a double back through the
+#        ctypes tree-walk, which now DECLINES float documents; the rc397 claim
+#        is untouched but the instrument had to move to the bare export.
+#      * test_json_read_selfhost_rc401 -- pins that the native path is USED,
+#        and one of its six documents carries a float.
+#      * test_tool_schema_coverage -- a new public callable in srmech.amsc has
+#        to be registered or exempted, and a serialisation hook is the kind of
+#        thing an author does not think of as an op.
+#    Any rc that changes what a READER returns, or adds a public callable under
+#    srmech.amsc, moves these. Measured cost: 336 / 27 / 36 / 125 / 8 tests,
+#    3.6 s / 0.3 s / 0.4 s / 13.8 s / 0.6 s. Native .so required by the first
+#    three; the last two run pure.
+tests/test_dsl_parallel_c_rc455.py
+tests/test_dsl_chain_exact_guard_rc479.py
+tests/test_toml_float_correct_round_rc397.py
+tests/test_json_read_selfhost_rc401.py
+tests/test_tool_schema_coverage.py
+
+# -- the SECOND reader-contract round, added rc479 (`#T1188`) after CI found a
+#    SECOND set the first extension had still not covered ------------------
+#    The first extension (five files above) was written from the four classes
+#    CI reported, and the very next CI run reported TWO more — which is the
+#    lesson stated plainly: a manifest extended from a failure list covers that
+#    failure list, not the property.
+#      * test_toml_selfhost_parity_rc391 -- the corpus-wide TOML self-host
+#        oracle, 20 rows red on every native cell. It is the sibling of
+#        test_dsl_catalog_selfhost_rc392, which WAS restated early; the two
+#        assert the same property over different populations and only one of
+#        them was ever in this list.
+#      * test_exact_text_reader_rc479 -- this release's OWN gate file, which
+#        hard-imported `tomllib` and so could not even COLLECT on py3.10. No
+#        local cell runs 3.10, so nothing here can catch that class; it is
+#        listed because every other thing it asserts belongs in the fast set,
+#        and the 3.10 half is CI's to hold.
+#    Any rc that changes what a READER returns moves both. Measured: 81 and 35
+#    tests, 0.9 s and 3.5 s; both need the native .so.
+tests/test_toml_selfhost_parity_rc391.py
+tests/test_exact_text_reader_rc479.py
+#    And the two the CENSUS found, which no CI round did, because they are
+#    GREEN: `test_descriptor_hash_selfhost_rc393` and
+#    `test_profile_toolschema_selfhost_rc394`, the rc393/rc394 siblings of the
+#    same self-hosting family. Added on MEMBERSHIP of the property, not on
+#    redness — a green member is what stops the next reader change from finding
+#    them the way CI found their siblings. Derivation and controls:
+#    notes/_rc479_reader_contract_census.py. 7 and 11 tests, 0.4 s and 0.2 s.
+tests/test_descriptor_hash_selfhost_rc393.py
+tests/test_profile_toolschema_selfhost_rc394.py

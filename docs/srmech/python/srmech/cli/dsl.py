@@ -23,6 +23,8 @@ import sys
 from pathlib import Path
 from typing import Any, List, Optional
 
+from .._json import _exact_parse_float          # rc479 (`#T1188`): contract A
+
 
 def _safe_print(line: str) -> None:
     """Print ``line`` to stdout; replace characters the stdout encoding
@@ -188,7 +190,14 @@ def run_run(args: argparse.Namespace) -> int:
             # stdlib json by PROTOCOL-BOUNDARY decision, not neglect (`#T1008`): this parses
             # user-supplied CLI input (argv / a named file / stdin), not an srmech-authored
             # descriptor. The READ self-host deliberately stops at the process boundary.
-            input_value = json.loads(args.input)
+            #
+            # rc479 (`#T1188`) — contract A does NOT cross that boundary: the
+            # PARSER stays stdlib and only its `parse_float=` default moves, so
+            # `--input '{"x": 0.1}'` reaches the chain as the exact Q(1, 10) the
+            # text already names. An A1 refusal raises ValueError rather than
+            # JSONDecodeError, so it is caught alongside it below.
+            input_value = json.loads(args.input,
+                                     parse_float=_exact_parse_float())
         except json.JSONDecodeError as exc:
             print(
                 f"srmech dsl run: --input is not valid JSON: {exc}",
@@ -210,12 +219,16 @@ def run_run(args: argparse.Namespace) -> int:
                     raw = raw.strip()
                     if not raw:
                         continue
-                    # stdlib json: same protocol-boundary decision as above.
-                    input_value.append(json.loads(raw))
+                    # stdlib json: same protocol-boundary decision as above,
+                    # and the same rc479 contract-A parse_float=.
+                    input_value.append(
+                        json.loads(raw, parse_float=_exact_parse_float()))
         else:
             with open(in_path, "rb") as fh:
-                # stdlib json: same protocol-boundary decision as above.
-                input_value = json.loads(fh.read())
+                # stdlib json: same protocol-boundary decision as above,
+                # and the same rc479 contract-A parse_float=.
+                input_value = json.loads(fh.read(),
+                                         parse_float=_exact_parse_float())
     else:
         print(
             "srmech dsl run: provide --input or --input-file",
@@ -367,9 +380,27 @@ def _json_safe(value: Any) -> Any:
     Handles the common cascade-output shapes: scalars pass through,
     tuples become lists, numpy arrays become nested lists. Mixed
     payloads are best-effort; anything truly opaque is stringified.
+
+    ⚠️ **rc479 (`#T1188`) — an exact ``Q`` is NOT "truly opaque", and it used
+    to land in that bucket.** Contract A reads ``--input -7.5`` as the exact
+    rational it names, so a chain that used to end in a ``float`` now ends in
+    a ``Q`` and this surface saw one for the first time. The generic
+    ``str(value)`` fallback rendered it ``"15/2"`` — legible, but a STRING,
+    so ``--json`` emitted a quoted token where every other srmech wire (the
+    MCP result, the AMSC record, the C value descriptor) carries the exact
+    ``[num, den]`` integer pair. That is a machine-readability regression on
+    the one flag whose whole purpose is machine readability, so the pair is
+    emitted here too and the shapes agree across surfaces.
+
+    A ``Qalg`` deliberately still stringifies: it has no JSON form at all,
+    which is what the tool-schema lexicon records for it.
     """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
+    num = getattr(value, "numerator", None)
+    den = getattr(value, "denominator", None)
+    if isinstance(num, int) and isinstance(den, int):
+        return [num, den]
     if isinstance(value, tuple):
         return [_json_safe(v) for v in value]
     if isinstance(value, list):

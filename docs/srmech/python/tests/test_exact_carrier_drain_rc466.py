@@ -739,15 +739,57 @@ def test_g2_three_form_is_not_cd_three_form() -> None:
     assert hdc.g2_three_form(_e(1), _e(2), _e(3)) == cd_three_form(_e(1), _e(2), _e(3))
 
 
-def test_the_dft_wrappers_elect_the_float_carrier_at_their_own_entry() -> None:
-    """quaternion_dft / octonion_dft are float-declared transforms with a
-    C-mirrored op order; they make the float request EXPLICITLY at entry so a
-    fixed coercion step cannot turn their accumulator into Q-of-float."""
+def test_the_dft_wrappers_take_the_carrier_their_own_operand_elects() -> None:
+    """The DFT wrappers' entry carrier, INVERTED at rc479 (`#T1188`).
+
+    ⚠️ **This test used to pin the opposite, and it is restated rather than
+    deleted or skipped, because what it pinned was a real decision that a
+    measurement reversed.** Through rc478 it read
+    ``test_the_dft_wrappers_elect_the_float_carrier_at_their_own_entry`` and
+    asserted every returned leaf ``isinstance(c, float)``, on rc466's stated
+    ground: without an explicit entry cast *"an exact sample would ride
+    qdft_summand's exact rung into vec_add's float accumulator and Q.__radd__
+    would turn the chain into Q-of-float arithmetic: a mixed carrier, which
+    rc463 names as the defect rather than the cure."*
+
+    **That premise is false, and rc479 measured it before moving a line.** On
+    the rc478 BASELINE the DECLARED CHAIN already returned Q-of-float for
+    every partially-exact sample shape probed — five of them, both routes,
+    both cells. The entry cast never prevented the mixed carrier; it only
+    stopped the WRAPPER from matching the chain that has it, which is how
+    fifteen rc420 bit-identity proof cases went red the moment a descriptor's
+    literals became exact. The tree's own mixed-carrier detector,
+    ``test_silent_carrier_demotion_rc463``, is unchanged by the reversal.
+
+    So the pinned property is now rc466's OWN rule — **the carrier is the
+    operand's, not the op's** — in three clauses:
+
+    1. an EXACT sample returns exact leaves (``Q``, or ``Qalg`` where the
+       turn's cosine and scaled sine are not both rational);
+    2. a FLOAT sample returns floats, byte-identically to every prior rc;
+    3. the exact answer is EXACT — ``2**53 + 1`` survives, where the float
+       route rounds it to ``2**53``. That third clause is what the isinstance
+       could never say.
+    """
     from srmech.cascade import quaternion_dft, octonion_dft
+    from srmech.math.q import Q as _Q
+
+    # (1) an exact sample returns the exact carrier
     out = quaternion_dft([[P, 0, 0, 0], [1, 2, 3, 4]])
-    assert all(isinstance(c, float) for row in out for c in row)
-    out = octonion_dft([[P, 0, 0, 0]])
-    assert all(isinstance(c, float) for row in out for c in row)
+    assert all(not isinstance(c, float) for row in out for c in row), out
+    out8 = octonion_dft([[P, 0, 0, 0]])
+    assert all(not isinstance(c, float) for row in out8 for c in row), out8
+
+    # (3) and it is EXACT — P survives where the float route rounds it
+    #     X[0] = (P + 1) and X[1] = (P - 1) on a two-point scalar transform.
+    assert out[0][0] == _Q(P + 1, 1), out[0][0]
+    assert out8[0][0] == _Q(P, 1), out8[0][0]
+
+    # (2) a FLOAT sample keeps the float carrier, unchanged
+    fout = quaternion_dft([[1.0, 2.0, 3.0, 4.0], [0.5, 0.0, 0.0, 0.0]])
+    assert all(isinstance(c, float) for row in fout for c in row)
+    fout8 = octonion_dft([[1.0] + [0.0] * 7])
+    assert all(isinstance(c, float) for row in fout8 for c in row)
 
 
 # ── the REGISTRY says both carriers ──────────────────────────────────────────
@@ -779,8 +821,13 @@ _RETURNS = {
     "srmech.cascade.cd_uncouple_working": "list[float] | list[Q] | list[Qalg]",
     "srmech.cascade.cdr_couple_working": "list[float] | list[Q] | list[Qalg]",
     "srmech.cascade.cdr_uncouple_working": "list[float] | list[Q] | list[Qalg]",
-    "srmech.cascade.as_oct8": "list[float] | list[Q]",
-    "srmech.cascade.as_quat4": "list[float] | list[Q]",
+    # rc479 (`#T1188`): a THIRD arm, because these two now accept and return
+    # the exact-ALGEBRAIC leaf the DFT wrappers emit off a non-rational turn.
+    # The widening is what closes a round trip that raised, and it is declared
+    # here so the acceptance is not undeclared (the rc363 honesty ratchet
+    # fires on exactly that, and the remedy is to widen the declaration).
+    "srmech.cascade.as_oct8": "list[float] | list[Q] | list[Qalg]",
+    "srmech.cascade.as_quat4": "list[float] | list[Q] | list[Qalg]",
     "srmech.cascade.qdft_summand": "list[float] | list[Q] | list[Qalg]",
     "srmech.cascade.odft_summand": "list[float] | list[Q] | list[Qalg]",
     "srmech.cascade.correlation_product": "float | Q",

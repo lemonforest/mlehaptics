@@ -99,6 +99,57 @@ substitution at collector run-time."""
 # ──────────────────────────────────────────────────────────────────────
 
 
+def canonical_json_default(obj: Any) -> Any:
+    """``json.dumps`` ``default=`` for every srmech CANONICALISATION whose
+    bytes are HASHED or COMMITTED — rc479 (`#T1188`).
+
+    An exact rational carrier (:class:`~srmech.math.q.Q`) writes as the DOUBLE
+    it projects to, and every other unserialisable object raises the
+    ``TypeError`` ``json.dumps`` raised before, unchanged.
+
+    ⚠️ **The double, not the exact pair, and the reason is the whole of MPM.**
+    Contract A changes how srmech CARRIES a number it reads; it does not change
+    what the committed bytes SAY. An attestation digest documents what was
+    fetched or committed, so it must not move because the reader's carrier
+    changed — and these canonicalisations feed digests that are already on
+    disk in every attested catalog: ``response_sha256`` for a
+    ``literature_curated`` row is the SHA-256 of this exact serialisation
+    (``catalog.py``), and ``collector_descriptor_hash`` is the SHA-256 of the
+    PARSED descriptor re-emitted this way (``descriptor.py``) — **neither is
+    over raw fetched bytes**, which is the opposite of what a reader would
+    assume and what this rc's own planning assumed. Writing ``[num, den]``
+    here instead would have been byte-correct, exact, and would have silently
+    invalidated every committed attestation in the tree.
+
+    **It is byte-IDENTICAL, and that is measured, not argued.** A ``Q`` read
+    from a decimal token projects to exactly the double ``float(token)`` gave
+    (the invariant the rc479 ledger seeds at 721/727 LIVE and 419 989/420 002
+    DATED, whose only misses are signed zeros — which rule Z1 keeps as floats
+    and never sends here). Measured over the shipped corpus: 10 of 10
+    descriptor canonicalisations and 191 of 191 sampled row digests
+    byte-identical, 0 moved, with the ``Q``-is-present control firing (without
+    this ``default=`` the same rows raise ``TypeError: Object of type Q is not
+    JSON serializable``).
+
+    A rational too large for a double raises ``OverflowError`` rather than
+    inventing ``Infinity``. No tree literal reaches it — the widest committed
+    numerator is 124 digits and denominator 319 — and a loud refusal is the
+    right answer for a value this format cannot canonicalise.
+
+    The EXACT pair is not lost: the MPR format's exact channel is an integer
+    ``[num, den]`` leaf AUTHORED as one, which ``cosmos_validation``'s 132
+    integer leaves already use and which round-trips through this writer
+    untouched because two ints need no ``default=``.
+    """
+    num = getattr(obj, "numerator", None)
+    den = getattr(obj, "denominator", None)
+    if isinstance(num, int) and isinstance(den, int) \
+            and not isinstance(obj, (int, bool, float)):
+        return obj.__float__() if hasattr(obj, "__float__") else num / den
+    raise TypeError(
+        f"Object of type {type(obj).__name__} is not JSON serializable")
+
+
 @dataclass(frozen=True)
 class MPRRecord:
     """A single ground-proof row in the canonical MPR format.
@@ -120,6 +171,19 @@ class MPRRecord:
 
         Uses ``sort_keys=True`` so the same record always serialises
         to the same bytes — preserves byte-level reproducibility.
+
+        ⚠️ **rc479 (`#T1188`) — the write-side repair contract A needs.**
+        Under contract A a row READ back from an attested catalog carries
+        exact :class:`~srmech.math.q.Q` leaves where it carried floats, and
+        ``json.dumps`` had no ``default=`` here, so re-writing such a row
+        raised ``TypeError: Object of type Q is not JSON serializable``. It
+        now routes through :func:`canonical_json_default`, which writes the
+        DOUBLE the rational projects to — read that function's own note for
+        why the exact pair would have been the wrong answer HERE, and what it
+        would have cost every committed ``response_sha256``. The round trip
+        is closed in both directions: a row written from a ``Q`` re-reads as
+        the same ``Q``, because the decimal text it wrote is the rational the
+        reader already names.
         """
         payload: Dict[str, Any] = {
             "mpr_version": self.mpr_version,
@@ -128,7 +192,8 @@ class MPRRecord:
             "attestation": dict(self.attestation),
             "rendering": dict(self.rendering),
         }
-        return json.dumps(payload, sort_keys=True, ensure_ascii=False)
+        return json.dumps(payload, sort_keys=True, ensure_ascii=False,
+                          default=canonical_json_default)
 
     @classmethod
     def from_json_line(cls, line: str) -> "MPRRecord":

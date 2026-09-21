@@ -408,7 +408,59 @@ static srmech_status_t json_scan_number(json_parser_t *p, bool *is_double)
  * json, which also yields inf) and 0.0 on underflow (`1e-400` -> 0.0, likewise
  * matching). So an errno check here would REGRESS parity by declining inputs
  * CPython accepts. Deliberately left alone; proven in
- * c/test/test_srmech_json_number_rc402.c. */
+ * c/test/test_srmech_json_number_rc402.c.
+ *
+ * ⚠️ rc479 (#T1188) SCOPES that adjudication rather than retracting it. It is
+ * a statement about the DOUBLE projection — the one a bare-C host reads — and
+ * stays true of it: `1e400` is still inf here. It was never a statement about
+ * the EXACT projection, which has no double to round. What rc479 DOES add is
+ * the other end: a literal whose exact (num, den) pair would exceed
+ * SRMECH_DEC_MAX_DIGITS now returns SRMECH_ERR_LIMIT instead of inf, so both
+ * projections REFUSE the same token. `1e400` is inside the bound and is
+ * unaffected; `1e4300` and `1e-4300` are not. */
+
+/* rc479 (#T1188): does this VALIDATED JSON number token name a rational whose
+ * unreduced (num, den) pair exceeds SRMECH_DEC_MAX_DIGITS? `tok` has already
+ * passed json_scan_number, so its grammar is RFC 8259 and no re-validation is
+ * needed here — only counting.
+ *
+ * ORDER IS LOAD-BEARING, exactly as in srmech_toml.c: an all-zero significand
+ * names ZERO whatever its exponent says and builds nothing, so `0e999999999`
+ * is ACCEPTED and returns 0 from this function before any count runs. */
+static int json_dec_over_bound(const char *tok, size_t n)
+{
+    size_t i = 0u;
+    int frac = 0, esign = 1, nd = 0, seen_dot = 0, over = 0;
+    long expo = 0L, E;
+    assert(tok != NULL);
+    assert(n > 0u);
+    if (tok[0] == '-' || tok[0] == '+') { i = 1u; }
+    for (; i < n; i++) {
+        char c = tok[i];
+        if (c == '.') { seen_dot = 1; continue; }
+        if (c == 'e' || c == 'E') { break; }
+        if (c != '0' || nd > 0) { nd++; }          /* leading zeros skipped */
+        if (seen_dot != 0) { frac++; }
+    }
+    if (nd == 0) { return 0; }                     /* the ZERO collapse */
+    if (i < n && (tok[i] == 'e' || tok[i] == 'E')) {
+        i++;
+        if (i < n && (tok[i] == '+' || tok[i] == '-')) {
+            esign = (tok[i] == '-') ? -1 : 1;
+            i++;
+        }
+        for (; i < n; i++) {
+            expo = expo * 10L + (long)(tok[i] - '0');
+            if (expo > (long)SRMECH_DEC_MAX_DIGITS) { over = 1; expo = 100000L; }
+        }
+    }
+    if (over != 0) { return 1; }
+    E = (long)esign * expo - (long)frac;
+    if (E > 0L && (long)nd > (long)SRMECH_DEC_MAX_DIGITS - E) { return 1; }
+    if (E <= 0L && -E > (long)SRMECH_DEC_MAX_DIGITS - 1L) { return 1; }
+    if (nd > SRMECH_DEC_MAX_DIGITS) { return 1; }
+    return 0;
+}
 static srmech_status_t json_parse_number(json_parser_t *p,
                                          srmech_json_value_t *v)
 {
@@ -429,6 +481,14 @@ static srmech_status_t json_parse_number(json_parser_t *p,
     memcpy(tmp, p->src + start, n);
     tmp[n] = '\0';
     if (is_double) {
+        /* rc479 (#T1188): contract A's digit bound. A literal whose exact
+         * (num, den) pair would exceed SRMECH_DEC_MAX_DIGITS is REFUSED here
+         * rather than answered as a rounded double, so this projection and
+         * the Python one refuse the same token. `1e400` is inside the bound
+         * and still answers inf; `1e4300` / `1e-4300` do not. */
+        if (json_dec_over_bound(tmp, n) != 0) {
+            return SRMECH_ERR_LIMIT;
+        }
         v->type = SRMECH_JSON_DOUBLE;
         v->u.f = strtod(tmp, NULL);
         return SRMECH_OK;

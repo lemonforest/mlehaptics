@@ -79,6 +79,7 @@ from functools import lru_cache
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from srmech import _json as _srmech_json
+from srmech.amsc.format import canonical_json_default as _canonical_default  # rc479
 
 
 # Composition engine schema version this module implements.
@@ -493,7 +494,8 @@ def _parse_chain_spec_native(
     if lib is None:
         return None
     try:
-        payload = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
+        payload = json.dumps(chain_dict, ensure_ascii=False,
+                             default=_canonical_default).encode("utf-8")
     except (TypeError, ValueError):
         return None
     text = _call_compose_native(
@@ -522,7 +524,8 @@ def _parse_catalog_chains_native(
         "operator_chain": chains_raw,
     }
     try:
-        payload = json.dumps(payload_obj, ensure_ascii=False).encode("utf-8")
+        payload = json.dumps(payload_obj, ensure_ascii=False,
+                             default=_canonical_default).encode("utf-8")
     except (TypeError, ValueError):
         return None
     text = _call_compose_native(
@@ -1659,8 +1662,10 @@ def _run_chain_native(
     if not ctx_ok:
         return _NATIVE_MISS
     try:
-        chain_json = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
-        ctx_json = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
+        chain_json = json.dumps(chain_dict, ensure_ascii=False,
+                                default=_canonical_default).encode("utf-8")
+        ctx_json = json.dumps(ctx, ensure_ascii=False,
+                              default=_canonical_default).encode("utf-8")
     except (TypeError, ValueError):
         return _NATIVE_MISS
     ws_bytes = int(lib.srmech_chain_run_arena_bytes(
