@@ -1055,3 +1055,33 @@ tests/test_dsl_chain_exact_guard_rc479.py
 tests/test_toml_float_correct_round_rc397.py
 tests/test_json_read_selfhost_rc401.py
 tests/test_tool_schema_coverage.py
+
+# -- the SECOND reader-contract round, added rc479 (`#T1188`) after CI found a
+#    SECOND set the first extension had still not covered ------------------
+#    The first extension (five files above) was written from the four classes
+#    CI reported, and the very next CI run reported TWO more — which is the
+#    lesson stated plainly: a manifest extended from a failure list covers that
+#    failure list, not the property.
+#      * test_toml_selfhost_parity_rc391 -- the corpus-wide TOML self-host
+#        oracle, 20 rows red on every native cell. It is the sibling of
+#        test_dsl_catalog_selfhost_rc392, which WAS restated early; the two
+#        assert the same property over different populations and only one of
+#        them was ever in this list.
+#      * test_exact_text_reader_rc479 -- this release's OWN gate file, which
+#        hard-imported `tomllib` and so could not even COLLECT on py3.10. No
+#        local cell runs 3.10, so nothing here can catch that class; it is
+#        listed because every other thing it asserts belongs in the fast set,
+#        and the 3.10 half is CI's to hold.
+#    Any rc that changes what a READER returns moves both. Measured: 81 and 35
+#    tests, 0.9 s and 3.5 s; both need the native .so.
+tests/test_toml_selfhost_parity_rc391.py
+tests/test_exact_text_reader_rc479.py
+#    And the two the CENSUS found, which no CI round did, because they are
+#    GREEN: `test_descriptor_hash_selfhost_rc393` and
+#    `test_profile_toolschema_selfhost_rc394`, the rc393/rc394 siblings of the
+#    same self-hosting family. Added on MEMBERSHIP of the property, not on
+#    redness — a green member is what stops the next reader change from finding
+#    them the way CI found their siblings. Derivation and controls:
+#    notes/_rc479_reader_contract_census.py. 7 and 11 tests, 0.4 s and 0.2 s.
+tests/test_descriptor_hash_selfhost_rc393.py
+tests/test_profile_toolschema_selfhost_rc394.py
