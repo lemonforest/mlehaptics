@@ -567,6 +567,56 @@ def test_gmix_a_partially_exact_sample_agrees_chain_vs_op():
     assert any(not isinstance(c, float) for row in out2 for c in row)
 
 
+def test_gmix_qalg_orders_exactly_where_an_order_exists():
+    """The THIRD carrier gap, and its limit is the point.
+
+    Through rc478 a ``Qalg`` never reached a public wrapper's OUTPUT — the DFT
+    transforms cast to float at their own entry. M2/M3 removed that cast, so
+    an exact sample returns ``Qalg`` leaves, and ``quaternion_dft``'s own
+    SHIPPED worked example — which a user copies — computes a round-trip
+    residue and asks ``d >= 0`` for its Class-K sign branch. That raised
+    ``TypeError: '>=' not supported between instances of 'Qalg' and 'int'``.
+
+    ⚠️ **NOT a total order, and it must not become one.** A general element of
+    ℚ(α) is COMPLEX, and ``<`` on a complex number is not hard — it is
+    UNDEFINED. So the order exists exactly where the element lies in the prime
+    field ℚ, and REFUSES otherwise with a message that says why. Measured on
+    that worked snippet: all 32 round-trip residues are RATIONAL and exactly
+    ZERO, so the rational arm closes it completely, with no projection and no
+    tolerance. ``float(Qalg)`` is deliberately not the fallback — it needs an
+    attached embedding root, and a comparison that depends on a rounding is
+    the defect this release removes.
+
+    DOES NOT PROVE anything about ordering a non-rational element; it proves
+    that asking for one REFUSES rather than inventing an answer.
+    """
+    from srmech.math.qalg import Qalg
+
+    m = (1, 0, 0, 0, 1)                      # ℚ(ζ₈)
+    one = Qalg(m, (Q(1, 1), Q(0, 1), Q(0, 1), Q(0, 1)))
+    half = Qalg(m, (Q(1, 2), Q(0, 1), Q(0, 1), Q(0, 1)))
+    zero = Qalg(m, (Q(0, 1), Q(0, 1), Q(0, 1), Q(0, 1)))
+    alpha = Qalg(m, (Q(0, 1), Q(1, 1), Q(0, 1), Q(0, 1)))   # ζ₈ — NOT real
+
+    # the rational arm: exact, both directions, against int / Q / float / Qalg
+    assert one >= 0 and one > 0 and zero >= 0 and not (zero > 0)
+    assert half < one and one > half and half <= half and half >= half
+    assert one > Q(1, 2) and one >= Q(1, 1) and half < 1 and half <= 1.0
+    assert 0 < one and 1 >= one and Q(1, 2) < one
+
+    # the refusal, and it NAMES the reason rather than reading as a type slip
+    for bad in (lambda: alpha >= 0, lambda: alpha < one,
+                lambda: one < alpha, lambda: alpha > alpha):
+        with pytest.raises(TypeError) as exc:
+            bad()
+        assert "prime field" in str(exc.value), str(exc.value)[:120]
+
+    # EQUALITY is untouched and was already correct — pinned so a future
+    # ordering edit cannot quietly change it
+    assert one == 1 and 1 == one and one == Q(1, 1) and one == 1.0
+    assert zero == 0 and not bool(zero) and bool(one)
+
+
 def test_gmix_the_transform_round_trips_its_own_output():
     """A transform whose output its own entry coercer cannot accept is broken.
 
