@@ -1025,3 +1025,33 @@ tests/test_curated_line_citations_resolve_rc473.py
 #    Any rc that edits a remedy string, a hooks doc or a notes recipe moves it.
 #    Pure-Python, no native .so.
 tests/test_git_export_advice_absent_rc473.py
+
+# -- the READER-CONTRACT ripple, added rc479 (`#T1188`) AFTER CI FOUND IT -----
+#    These five were NOT in this list, and the rc479 contract-A round is what
+#    proved that a gap. The local ripple run was GREEN on its 3264 items while
+#    four distinct classes of real breakage sat outside it, and CI found all
+#    four at once across seven cells:
+#      * test_dsl_parallel_c_rc455 -- the DSL chain runner hands a whole chain
+#        to C, so an op's OWN native guard is invisible one layer up. A
+#        parallel `autocorrelation` over the seed [7] served [49.0] native
+#        against [Q(49, 1)] pure. A silent wrong value in one projection, which
+#        is the class this project ranks first, and nothing local could see it.
+#      * test_dsl_chain_exact_guard_rc479 -- the guard that closes it, plus the
+#        re-derivation of its roster from the declared return types.
+#      * test_toml_float_correct_round_rc397 -- reads a double back through the
+#        ctypes tree-walk, which now DECLINES float documents; the rc397 claim
+#        is untouched but the instrument had to move to the bare export.
+#      * test_json_read_selfhost_rc401 -- pins that the native path is USED,
+#        and one of its six documents carries a float.
+#      * test_tool_schema_coverage -- a new public callable in srmech.amsc has
+#        to be registered or exempted, and a serialisation hook is the kind of
+#        thing an author does not think of as an op.
+#    Any rc that changes what a READER returns, or adds a public callable under
+#    srmech.amsc, moves these. Measured cost: 336 / 27 / 36 / 125 / 8 tests,
+#    3.6 s / 0.3 s / 0.4 s / 13.8 s / 0.6 s. Native .so required by the first
+#    three; the last two run pure.
+tests/test_dsl_parallel_c_rc455.py
+tests/test_dsl_chain_exact_guard_rc479.py
+tests/test_toml_float_correct_round_rc397.py
+tests/test_json_read_selfhost_rc401.py
+tests/test_tool_schema_coverage.py
