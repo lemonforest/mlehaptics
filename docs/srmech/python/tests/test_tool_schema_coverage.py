@@ -79,6 +79,19 @@ _EXEMPT_FUNCTION_NAMES = frozenset({
     # (already registered).
     "srmech.amsc.format.validate_mpr_record",
     "srmech.amsc.format.write_ndjson",
+    # format.canonical_json_default (v0.9.0rc479, `#T1188`) — contract A's
+    # WRITE-SIDE POLICY, and a `json.dumps(default=)` CALLBACK rather than an
+    # operation a caller composes. It answers one question: how does a
+    # canonical writer spell an exact rational? As its DOUBLE — because
+    # `descriptor_hash` and `response_sha256` hash PARSED content, so emitting
+    # the exact [num, den] pair would have silently invalidated every committed
+    # attestation in the tree (measured: 10/10 descriptors and 191/191 rows
+    # byte-identical with the double, with a Q-is-present control firing).
+    # A ToolEntry would advertise a serialisation hook as an engine op, which
+    # is what the MCP tool list is not for. Exempt on exactly the ground the
+    # two lines above it are: a writer helper around a registered op
+    # (`sha256_bytes` / `read_ndjson`), not a new one.
+    "srmech.amsc.format.canonical_json_default",
     # format.sha256_hex / sha256_raw (v0.7.5rc1; W4 / RBS-LM bugfix wishlist) —
     # the name-says-return alias and the raw-32-byte companion of
     # ``sha256_bytes`` (which IS registered). Same value, same native dispatch
