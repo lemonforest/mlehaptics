@@ -570,8 +570,13 @@ static const mcp_kv_t MCP_TYPE_LEXICON[] = {
      * python/srmech/mcp/_tools.py; this table is HAND-MAINTAINED. */
     {"list[float] | list[Q]", "array"},
     /* rc479 (#T1188): the same union with the exact-ALGEBRAIC leaf, for
-     * as_quat4 / as_oct8. Still an ARRAY on the wire; the Qalg arm is
-     * IN-PROCESS only, exactly as the {"Qalg", "object"} row above. */
+     * as_quat4 / as_oct8. Still an ARRAY on the wire; the exact-algebraic arm
+     * is IN-PROCESS only, on the same ground as the bare Qalg row above.
+     * ⚠️ That sentence deliberately does NOT spell the bare row as a braced
+     * key/value pair: this table is read back by a regex that does not strip
+     * comments, so a quoted row inside one parses as a SECOND declaration of
+     * the same key — and rc185's duplicate guard catches it, which is how
+     * this comment came to be worded this way. */
     {"list[float] | list[Q] | list[Qalg]", "array"},
     {"Optional[list[int | Q | float]]", "array"},
     {"list[list[float]] | list[list[Q]]", "array"},
