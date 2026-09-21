@@ -36,6 +36,11 @@ import pathlib
 import struct
 import sys
 
+if sys.version_info >= (3, 11):
+    import tomllib as _stdlib_toml
+else:  # pragma: no cover — 3.10 back-port; this package still supports 3.10
+    import tomli as _stdlib_toml  # type: ignore[no-redef]
+
 import pytest
 
 from srmech import _json, _native, _toml
@@ -391,7 +396,6 @@ def test_g4_the_exact_reading_projects_to_the_same_double():
     where the exact reading cannot carry the value, and rule Z1 keeps those
     on the float carrier so they never reach the comparison.
     """
-    import tomllib
     seen = []
 
     def record(text):
@@ -403,8 +407,8 @@ def test_g4_the_exact_reading_projects_to_the_same_double():
     assert len(files) >= 10, "the corpus is too small to mean anything"
     for p in files:
         try:
-            tomllib.loads(p.read_text(encoding="utf-8"), parse_float=record)
-        except tomllib.TOMLDecodeError:            # pragma: no cover
+            _stdlib_toml.loads(p.read_text(encoding="utf-8"), parse_float=record)
+        except _stdlib_toml.TOMLDecodeError:            # pragma: no cover
             continue
     assert len(seen) >= 100, f"only {len(seen)} float tokens harvested"
 
@@ -792,12 +796,11 @@ def test_gdigest_canonicalisation_stays_in_the_double_projection():
 
 def test_gdigest_the_descriptor_hash_is_invariant():
     """``descriptor_hash`` hashes the PARSED dict; contract A must not move it."""
-    import tomllib
     from srmech.amsc.descriptor import descriptor_hash
 
     checked = 0
     for p in sorted((PKG / "amsc" / "attested").rglob("*.toml")):
-        old = tomllib.loads(p.read_text(encoding="utf-8"))
+        old = _stdlib_toml.loads(p.read_text(encoding="utf-8"))
         ob = json.dumps(old, sort_keys=True,
                         ensure_ascii=False).encode("utf-8")
         assert descriptor_hash(p) == sha256_bytes(ob), p.name
