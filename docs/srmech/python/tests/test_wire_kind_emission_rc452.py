@@ -46,6 +46,7 @@ import json
 from pathlib import Path
 
 import pytest
+from tests import _carrier_projection
 
 import srmech._native as _native
 from srmech.cascade import compose as _compose
@@ -208,12 +209,18 @@ def _c_run(chain_dict, ctx):
     assert lib is not None, (
         "the chain-run symbols are absent from a loaded library — a different "
         "failure, and it must not read as a skip")
+    # rc479 (`#T1188`): ONE carrier. Contract A makes a descriptor's literals
+    # exact and C has no exact route, so an unprojected marshal fails and the
+    # failure wears a verdict's name — here, "population A stopped emitting a
+    # kind it used to" for five kinds at once. See tests/_carrier_projection.py.
     try:
+        chain_dict = _carrier_projection.double_projection(chain_dict)
+        ctx = _carrier_projection.double_projection(ctx)
         cj = json.dumps(chain_dict, ensure_ascii=False,
                         allow_nan=False).encode("utf-8")
         xj = json.dumps({"inputs": ctx}, ensure_ascii=False,
                         allow_nan=False).encode("utf-8")
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return None, b"", False
     ws_bytes = int(lib.srmech_chain_run_arena_bytes(len(cj), len(xj)))
     ws = (ctypes.c_char * ws_bytes)()
@@ -293,6 +300,10 @@ def _census_b():
                 acc["declined"] += 1
                 continue
             try:
+                # rc479 (`#T1188`): ONE carrier — see
+                # tests/_carrier_projection.py.
+                chain_dict = _carrier_projection.double_projection(chain_dict)
+                ctx = _carrier_projection.double_projection(ctx)
                 cj = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
                 xj = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
             except (TypeError, ValueError):
@@ -589,6 +600,10 @@ def _census_b_valued():
                 acc["declined"] += 1
                 continue
             try:
+                # rc479 (`#T1188`): ONE carrier — see
+                # tests/_carrier_projection.py.
+                chain_dict = _carrier_projection.double_projection(chain_dict)
+                ctx = _carrier_projection.double_projection(ctx)
                 cj = json.dumps(chain_dict, ensure_ascii=False).encode("utf-8")
                 xj = json.dumps(ctx, ensure_ascii=False).encode("utf-8")
             except (TypeError, ValueError):
